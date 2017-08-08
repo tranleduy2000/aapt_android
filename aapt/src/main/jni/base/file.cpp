@@ -24,8 +24,8 @@
 #include <mutex>
 #include <vector>
 #include <cstdlib>
+#include <android-base/logging.h>
 
-#include "android-base/logging.h"
 #include "android-base/unique_fd.h"
 #include "android-base/utf8.h"
 

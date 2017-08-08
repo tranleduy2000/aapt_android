@@ -23,7 +23,6 @@
 #include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <inttypes.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
@@ -33,11 +32,11 @@
 #include <vector>
 
 #include <android-base/file.h>
-#include <android-base/logging.h>
 #include <android-base/memory.h>
 
 #include <utils/FileMap.h>
 #include <utils/Log.h>
+#include <android-base/logging.h>
 #include "ziparchive/zip_archive.h"
 #include "zlib.h"
 

@@ -19,10 +19,10 @@
 #include <sys/param.h>
 #include <sys/stat.h>
 #include <zlib.h>
+#include <android-base/logging.h>
 
 #define DEF_MEM_LEVEL 8  // normally in zutil.h?
 
-#include "android-base/logging.h"
 #include "utils/Log.h"
 
 #include "entry_name_utils-inl.h"

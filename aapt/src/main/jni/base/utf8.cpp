@@ -21,7 +21,6 @@
 #include <algorithm>
 #include <string>
 
-#include "android-base/logging.h"
 
 namespace android {
     namespace base {
