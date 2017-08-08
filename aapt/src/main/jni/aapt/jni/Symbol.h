@@ -28,9 +28,13 @@
  */
 struct Symbol {
     inline Symbol();
-    inline Symbol(const android::String16& p, const android::String16& t, const android::String16& n, uint32_t i);
+
+    inline Symbol(const android::String16 &p, const android::String16 &t,
+                  const android::String16 &n, uint32_t i);
+
     inline android::String8 toString() const;
-    inline bool operator<(const Symbol& rhs) const;
+
+    inline bool operator<(const Symbol &rhs) const;
 
     android::String16 package;
     android::String16 type;
@@ -44,8 +48,10 @@ struct Symbol {
  */
 struct SymbolDefinition {
     inline SymbolDefinition();
-    inline SymbolDefinition(const Symbol& s, const ConfigDescription& c, const SourcePos& src);
-    inline bool operator<(const SymbolDefinition& rhs) const;
+
+    inline SymbolDefinition(const Symbol &s, const ConfigDescription &c, const SourcePos &src);
+
+    inline bool operator<(const SymbolDefinition &rhs) const;
 
     Symbol symbol;
     ConfigDescription config;
@@ -59,35 +65,32 @@ struct SymbolDefinition {
 Symbol::Symbol() {
 }
 
-Symbol::Symbol(const android::String16& p, const android::String16& t, const android::String16& n, uint32_t i)
-    : package(p)
-    , type(t)
-    , name(n)
-    , id(i) {
+Symbol::Symbol(const android::String16 &p, const android::String16 &t, const android::String16 &n,
+               uint32_t i)
+        : package(p), type(t), name(n), id(i) {
 }
 
 android::String8 Symbol::toString() const {
     return android::String8::format("%s:%s/%s (0x%08x)",
-            android::String8(package).string(),
-            android::String8(type).string(),
-            android::String8(name).string(),
-            (int) id);
+                                    android::String8(package).string(),
+                                    android::String8(type).string(),
+                                    android::String8(name).string(),
+                                    (int) id);
 }
 
-bool Symbol::operator<(const Symbol& rhs) const {
+bool Symbol::operator<(const Symbol &rhs) const {
     return (package < rhs.package) || (type < rhs.type) || (name < rhs.name) || (id < rhs.id);
 }
 
 SymbolDefinition::SymbolDefinition() {
 }
 
-SymbolDefinition::SymbolDefinition(const Symbol& s, const ConfigDescription& c, const SourcePos& src)
-    : symbol(s)
-    , config(c)
-    , source(src) {
+SymbolDefinition::SymbolDefinition(const Symbol &s, const ConfigDescription &c,
+                                   const SourcePos &src)
+        : symbol(s), config(c), source(src) {
 }
 
-bool SymbolDefinition::operator<(const SymbolDefinition& rhs) const {
+bool SymbolDefinition::operator<(const SymbolDefinition &rhs) const {
     return (symbol < rhs.symbol) || (config < rhs.config) || (source < rhs.source);
 }
 

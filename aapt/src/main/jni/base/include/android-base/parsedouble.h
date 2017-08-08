@@ -23,28 +23,28 @@
 #include <limits>
 
 namespace android {
-namespace base {
+    namespace base {
 
 // Parse double value in the string 's' and sets 'out' to that value.
 // Optionally allows the caller to define a 'min' and 'max' beyond which
 // otherwise valid values will be rejected. Returns boolean success.
-static inline bool ParseDouble(const char* s, double* out,
-                               double min = std::numeric_limits<double>::lowest(),
-                               double max = std::numeric_limits<double>::max()) {
-  errno = 0;
-  char* end;
-  double result = strtod(s, &end);
-  if (errno != 0 || s == end || *end != '\0') {
-    return false;
-  }
-  if (result < min || max < result) {
-    return false;
-  }
-  *out = result;
-  return true;
-}
+        static inline bool ParseDouble(const char *s, double *out,
+                                       double min = std::numeric_limits<double>::lowest(),
+                                       double max = std::numeric_limits<double>::max()) {
+            errno = 0;
+            char *end;
+            double result = strtod(s, &end);
+            if (errno != 0 || s == end || *end != '\0') {
+                return false;
+            }
+            if (result < min || max < result) {
+                return false;
+            }
+            *out = result;
+            return true;
+        }
 
-}  // namespace base
+    }  // namespace base
 }  // namespace android
 
 #endif  // ANDROID_BASE_PARSEDOUBLE_H

@@ -28,11 +28,12 @@
 #include "ResourceFilter.h"
 
 class ApkSplit;
+
 class AaptFile;
 
 class ApkBuilder : public android::RefBase {
 public:
-    explicit ApkBuilder(const sp<WeakResourceFilter>& configFilter);
+    explicit ApkBuilder(const sp<WeakResourceFilter> &configFilter);
 
     /**
      * Tells the builder to generate a separate APK for resources that
@@ -41,7 +42,7 @@ public:
      *
      * NOTE: All splits should be set up before any files are added.
      */
-    android::status_t createSplitForConfigs(const std::set<ConfigDescription>& configs);
+    android::status_t createSplitForConfigs(const std::set<ConfigDescription> &configs);
 
     /**
      * Adds a file to be written to the final APK. It's name must not collide
@@ -49,9 +50,9 @@ public:
      * generated, duplicates can exist as long as they are in different splits
      * (resources.arsc, AndroidManifest.xml).
      */
-    android::status_t addEntry(const String8& path, const android::sp<AaptFile>& file);
+    android::status_t addEntry(const String8 &path, const android::sp<AaptFile> &file);
 
-    android::Vector<sp<ApkSplit> >& getSplits() {
+    android::Vector<sp<ApkSplit> > &getSplits() {
         return mSplits;
     }
 
@@ -69,17 +70,17 @@ private:
 
 class ApkSplit : public OutputSet {
 public:
-    android::status_t addEntry(const String8& path, const android::sp<AaptFile>& file);
+    android::status_t addEntry(const String8 &path, const android::sp<AaptFile> &file);
 
-    const std::set<OutputEntry>& getEntries() const {
+    const std::set<OutputEntry> &getEntries() const {
         return mFiles;
     }
 
-    const std::set<ConfigDescription>& getConfigs() const {
+    const std::set<ConfigDescription> &getConfigs() const {
         return mConfigs;
     }
 
-    bool matches(const sp<AaptFile>& file) const {
+    bool matches(const sp<AaptFile> &file) const {
         return mFilter->match(file->getGroupEntry().toParams());
     }
 
@@ -87,15 +88,15 @@ public:
         return mFilter;
     }
 
-    const android::String8& getPrintableName() const {
+    const android::String8 &getPrintableName() const {
         return mName;
     }
 
-    const android::String8& getDirectorySafeName() const {
+    const android::String8 &getDirectorySafeName() const {
         return mDirName;
     }
 
-    const android::String8& getPackageSafeName() const {
+    const android::String8 &getPackageSafeName() const {
         return mPackageSafeName;
     }
 
@@ -108,7 +109,8 @@ public:
 private:
     friend class ApkBuilder;
 
-    ApkSplit(const std::set<ConfigDescription>& configs, const android::sp<ResourceFilter>& filter, bool isBase=false);
+    ApkSplit(const std::set<ConfigDescription> &configs, const android::sp<ResourceFilter> &filter,
+             bool isBase = false);
 
     std::set<ConfigDescription> mConfigs;
     const sp<ResourceFilter> mFilter;

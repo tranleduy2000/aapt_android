@@ -29,7 +29,7 @@ using namespace android;
 class CrunchCache {
 public:
     // Constructor
-    CrunchCache(String8 sourcePath, String8 destPath, FileFinder* ff);
+    CrunchCache(String8 sourcePath, String8 destPath, FileFinder *ff);
 
     // Nobody should be calling the default constructor
     // So this space is intentionally left blank
@@ -52,7 +52,7 @@ public:
      *      The function then returns the number of files changed in cache
      *      (counting deletions).
      */
-    size_t crunch(CacheUpdater* cu, bool forceOverwrite=false);
+    size_t crunch(CacheUpdater *cu, bool forceOverwrite = false);
 
 private:
     /** loadFiles is a wrapper to the FileFinder that places matching
@@ -81,7 +81,7 @@ private:
      *          // Recrunch sourceFile out to destFile.
      *
      */
-    bool needsUpdating(const String8& relativePath) const;
+    bool needsUpdating(const String8 &relativePath) const;
 
     // DATA MEMBERS ====================================================
 
@@ -92,11 +92,11 @@ private:
 
     // Each vector of paths contains one entry per PNG file encountered.
     // Each entry consists of a path pointing to that PNG.
-    DefaultKeyedVector<String8,time_t> mSourceFiles;
-    DefaultKeyedVector<String8,time_t> mDestFiles;
+    DefaultKeyedVector<String8, time_t> mSourceFiles;
+    DefaultKeyedVector<String8, time_t> mDestFiles;
 
     // Pointer to a FileFinder to use
-    FileFinder* mFileFinder;
+    FileFinder *mFileFinder;
 };
 
 #endif // CRUNCHCACHE_H

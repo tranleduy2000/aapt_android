@@ -41,7 +41,6 @@
 
 #ifdef __ANDROID__
 
-#include <binder/TextOutput.h>
 
 #endif
 

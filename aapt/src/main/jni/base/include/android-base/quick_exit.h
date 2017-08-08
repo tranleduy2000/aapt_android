@@ -20,15 +20,15 @@
 
 // Provide emulation for at_quick_exit/quick_exit on platforms that don't have it.
 namespace android {
-namespace base {
+    namespace base {
 
 // Bionic and glibc have quick_exit, Darwin and Windows don't.
 #if !defined(__linux__)
-  void quick_exit(int exit_code) __attribute__((noreturn));
-  int at_quick_exit(void (*func)());
+        void quick_exit(int exit_code) __attribute__((noreturn));
+        int at_quick_exit(void (*func)());
 #else
-  using ::at_quick_exit;
-  using ::quick_exit;
+        using ::at_quick_exit;
+        using ::quick_exit;
 #endif
-}
+    }
 }

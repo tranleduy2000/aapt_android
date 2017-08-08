@@ -27,19 +27,21 @@ class AaptFile;
 class OutputEntry {
 public:
     OutputEntry() {}
-    OutputEntry(const android::String8& path, const android::sp<const AaptFile>& file)
-        : mPath(path), mFile(file) {}
 
-    inline const android::sp<const AaptFile>& getFile() const {
+    OutputEntry(const android::String8 &path, const android::sp<const AaptFile> &file)
+            : mPath(path), mFile(file) {}
+
+    inline const android::sp<const AaptFile> &getFile() const {
         return mFile;
     }
 
-    inline const android::String8& getPath() const {
+    inline const android::String8 &getPath() const {
         return mPath;
     }
 
-    bool operator<(const OutputEntry& o) const { return getPath() < o.mPath; }
-    bool operator==(const OutputEntry& o) const { return getPath() == o.mPath; }
+    bool operator<(const OutputEntry &o) const { return getPath() < o.mPath; }
+
+    bool operator==(const OutputEntry &o) const { return getPath() == o.mPath; }
 
 private:
     android::String8 mPath;
@@ -48,7 +50,7 @@ private:
 
 class OutputSet : public virtual android::RefBase {
 public:
-    virtual const std::set<OutputEntry>& getEntries() const = 0;
+    virtual const std::set<OutputEntry> &getEntries() const = 0;
 
     virtual ~OutputSet() {}
 };

@@ -20,7 +20,7 @@
 #include <string>
 
 namespace android {
-namespace base {
+    namespace base {
 
 // Parses |address| into |host| and |port|.
 //
@@ -29,10 +29,10 @@ namespace base {
 // "[host]:port" as appropriate.
 //
 // On failure, returns false and fills |error|.
-bool ParseNetAddress(const std::string& address, std::string* host, int* port,
-                     std::string* canonical_address, std::string* error);
+        bool ParseNetAddress(const std::string &address, std::string *host, int *port,
+                             std::string *canonical_address, std::string *error);
 
-}  // namespace base
+    }  // namespace base
 }  // namespace android
 
 #endif  // ANDROID_BASE_PARSENETADDRESS_H

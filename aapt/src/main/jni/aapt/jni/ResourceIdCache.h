@@ -10,21 +10,21 @@
 
 namespace android {
 
-class ResourceIdCache {
-public:
-    static uint32_t lookup(const String16& package,
-            const String16& type,
-            const String16& name,
-            bool onlyPublic);
+    class ResourceIdCache {
+    public:
+        static uint32_t lookup(const String16 &package,
+                               const String16 &type,
+                               const String16 &name,
+                               bool onlyPublic);
 
-    static uint32_t store(const String16& package,
-            const String16& type,
-            const String16& name,
-            bool onlyPublic,
-            uint32_t resId);
+        static uint32_t store(const String16 &package,
+                              const String16 &type,
+                              const String16 &name,
+                              bool onlyPublic,
+                              uint32_t resId);
 
-    static void dump(void);
-};
+        static void dump(void);
+    };
 
 }
 

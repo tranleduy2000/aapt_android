@@ -31,88 +31,91 @@ namespace android {
  * To use it, write a loop to post work units to the work queue, then synchronize
  * on the queue at the end.
  */
-class WorkQueue {
-public:
-    class WorkUnit {
+    class WorkQueue {
     public:
-        WorkUnit() { }
-        virtual ~WorkUnit() { }
+        class WorkUnit {
+        public:
+            WorkUnit() {}
 
-        /*
-         * Runs the work unit.
-         * If the result is 'true' then the work queue continues scheduling work as usual.
-         * If the result is 'false' then the work queue is canceled.
+            virtual ~WorkUnit() {}
+
+            /*
+             * Runs the work unit.
+             * If the result is 'true' then the work queue continues scheduling work as usual.
+             * If the result is 'false' then the work queue is canceled.
+             */
+            virtual bool run() = 0;
+        };
+
+        /* Creates a work queue with the specified maximum number of work threads. */
+        explicit WorkQueue(size_t maxThreads, bool canCallJava = true);
+
+        /* Destroys the work queue.
+         * Cancels pending work and waits for all remaining threads to complete.
          */
-        virtual bool run() = 0;
-    };
+        ~WorkQueue();
 
-    /* Creates a work queue with the specified maximum number of work threads. */
-    explicit WorkQueue(size_t maxThreads, bool canCallJava = true);
+        /* Posts a work unit to run later.
+         * If the work queue has been canceled or is already finished, returns INVALID_OPERATION
+         * and does not take ownership of the work unit (caller must destroy it itself).
+         * Otherwise, returns OK and takes ownership of the work unit (the work queue will
+         * destroy it automatically).
+         *
+         * For flow control, this method blocks when the size of the pending work queue is more
+         * 'backlog' times the number of threads.  This condition reduces the rate of entry into
+         * the pending work queue and prevents it from growing much more rapidly than the
+         * work threads can actually handle.
+         *
+         * If 'backlog' is 0, then no throttle is applied.
+         */
+        status_t schedule(WorkUnit *workUnit, size_t backlog = 2);
 
-    /* Destroys the work queue.
-     * Cancels pending work and waits for all remaining threads to complete.
-     */
-    ~WorkQueue();
+        /* Cancels all pending work.
+         * If the work queue is already finished, returns INVALID_OPERATION.
+         * If the work queue is already canceled, returns OK and does nothing else.
+         * Otherwise, returns OK, discards all pending work units and prevents additional
+         * work units from being scheduled.
+         *
+         * Call finish() after cancel() to wait for all remaining work to complete.
+         */
+        status_t cancel();
 
-    /* Posts a work unit to run later.
-     * If the work queue has been canceled or is already finished, returns INVALID_OPERATION
-     * and does not take ownership of the work unit (caller must destroy it itself).
-     * Otherwise, returns OK and takes ownership of the work unit (the work queue will
-     * destroy it automatically).
-     *
-     * For flow control, this method blocks when the size of the pending work queue is more
-     * 'backlog' times the number of threads.  This condition reduces the rate of entry into
-     * the pending work queue and prevents it from growing much more rapidly than the
-     * work threads can actually handle.
-     *
-     * If 'backlog' is 0, then no throttle is applied.
-     */
-    status_t schedule(WorkUnit* workUnit, size_t backlog = 2);
-
-    /* Cancels all pending work.
-     * If the work queue is already finished, returns INVALID_OPERATION.
-     * If the work queue is already canceled, returns OK and does nothing else.
-     * Otherwise, returns OK, discards all pending work units and prevents additional
-     * work units from being scheduled.
-     *
-     * Call finish() after cancel() to wait for all remaining work to complete.
-     */
-    status_t cancel();
-
-    /* Waits for all work to complete.
-     * If the work queue is already finished, returns INVALID_OPERATION.
-     * Otherwise, waits for all work to complete and returns OK.
-     */
-    status_t finish();
-
-private:
-    class WorkThread : public Thread {
-    public:
-        WorkThread(WorkQueue* workQueue, bool canCallJava);
-        virtual ~WorkThread();
+        /* Waits for all work to complete.
+         * If the work queue is already finished, returns INVALID_OPERATION.
+         * Otherwise, waits for all work to complete and returns OK.
+         */
+        status_t finish();
 
     private:
-        virtual bool threadLoop();
+        class WorkThread : public Thread {
+        public:
+            WorkThread(WorkQueue *workQueue, bool canCallJava);
 
-        WorkQueue* const mWorkQueue;
+            virtual ~WorkThread();
+
+        private:
+            virtual bool threadLoop();
+
+            WorkQueue *const mWorkQueue;
+        };
+
+        status_t cancelLocked();
+
+        bool threadLoop(); // called from each work thread
+
+        const size_t mMaxThreads;
+        const bool mCanCallJava;
+
+        Mutex mLock;
+        Condition mWorkChangedCondition;
+        Condition mWorkDequeuedCondition;
+
+        bool mCanceled;
+        bool mFinished;
+        size_t mIdleThreads;
+        Vector<sp<WorkThread> > mWorkThreads;
+        Vector<WorkUnit *> mWorkUnits;
     };
-
-    status_t cancelLocked();
-    bool threadLoop(); // called from each work thread
-
-    const size_t mMaxThreads;
-    const bool mCanCallJava;
-
-    Mutex mLock;
-    Condition mWorkChangedCondition;
-    Condition mWorkDequeuedCondition;
-
-    bool mCanceled;
-    bool mFinished;
-    size_t mIdleThreads;
-    Vector<sp<WorkThread> > mWorkThreads;
-    Vector<WorkUnit*> mWorkUnits;
-};
 
 }; // namespace android
 

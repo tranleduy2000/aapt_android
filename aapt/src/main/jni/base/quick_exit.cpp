@@ -14,8 +14,6 @@
  * limitations under the License.
  */
 
-#include "android-base/quick_exit.h"
-
 #if !defined(__linux__)
 
 #include <mutex>

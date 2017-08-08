@@ -22,47 +22,51 @@
 #include <android-base/macros.h>
 
 class TemporaryFile {
- public:
-  TemporaryFile();
-  ~TemporaryFile();
+public:
+    TemporaryFile();
 
-  int fd;
-  char path[1024];
+    ~TemporaryFile();
 
- private:
-  void init(const std::string& tmp_dir);
+    int fd;
+    char path[1024];
 
-  DISALLOW_COPY_AND_ASSIGN(TemporaryFile);
+private:
+    void init(const std::string &tmp_dir);
+
+    DISALLOW_COPY_AND_ASSIGN(TemporaryFile);
 };
 
 class TemporaryDir {
- public:
-  TemporaryDir();
-  ~TemporaryDir();
+public:
+    TemporaryDir();
 
-  char path[1024];
+    ~TemporaryDir();
 
- private:
-  bool init(const std::string& tmp_dir);
+    char path[1024];
 
-  DISALLOW_COPY_AND_ASSIGN(TemporaryDir);
+private:
+    bool init(const std::string &tmp_dir);
+
+    DISALLOW_COPY_AND_ASSIGN(TemporaryDir);
 };
 
 class CapturedStderr {
- public:
-  CapturedStderr();
-  ~CapturedStderr();
+public:
+    CapturedStderr();
 
-  int fd() const;
+    ~CapturedStderr();
 
- private:
-  void init();
-  void reset();
+    int fd() const;
 
-  TemporaryFile temp_file_;
-  int old_stderr_;
+private:
+    void init();
 
-  DISALLOW_COPY_AND_ASSIGN(CapturedStderr);
+    void reset();
+
+    TemporaryFile temp_file_;
+    int old_stderr_;
+
+    DISALLOW_COPY_AND_ASSIGN(CapturedStderr);
 };
 
 #endif  // ANDROID_BASE_TEST_UTILS_H

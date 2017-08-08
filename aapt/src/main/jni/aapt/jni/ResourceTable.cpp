@@ -8,15 +8,9 @@
 
 #include "AaptUtil.h"
 #include "XMLNode.h"
-#include "ResourceFilter.h"
 #include "ResourceIdCache.h"
-#include "SdkConstants.h"
 
 #include <algorithm>
-#include <androidfw/ResourceTypes.h>
-#include <utils/ByteOrder.h>
-#include <utils/TypeHelpers.h>
-#include <stdarg.h>
 
 // SSIZE: mingw does not have signed size_t == ssize_t.
 // STATUST: mingw does seem to redefine UNKNOWN_ERROR from our enum value, so a cast is necessary.
@@ -37,15 +31,14 @@ static const bool kPrintStringMetrics = true;
 static const bool kPrintStringMetrics = false;
 #endif
 
-static const char* kAttrPrivateType = "^attr-private";
+static const char *kAttrPrivateType = "^attr-private";
 
-status_t compileXmlFile(const Bundle* bundle,
-                        const sp<AaptAssets>& assets,
-                        const String16& resourceName,
-                        const sp<AaptFile>& target,
-                        ResourceTable* table,
-                        int options)
-{
+status_t compileXmlFile(const Bundle *bundle,
+                        const sp<AaptAssets> &assets,
+                        const String16 &resourceName,
+                        const sp<AaptFile> &target,
+                        ResourceTable *table,
+                        int options) {
     sp<XMLNode> root = XMLNode::parse(target);
     if (root == NULL) {
         return UNKNOWN_ERROR;
@@ -54,53 +47,51 @@ status_t compileXmlFile(const Bundle* bundle,
     return compileXmlFile(bundle, assets, resourceName, root, target, table, options);
 }
 
-status_t compileXmlFile(const Bundle* bundle,
-                        const sp<AaptAssets>& assets,
-                        const String16& resourceName,
-                        const sp<AaptFile>& target,
-                        const sp<AaptFile>& outTarget,
-                        ResourceTable* table,
-                        int options)
-{
+status_t compileXmlFile(const Bundle *bundle,
+                        const sp<AaptAssets> &assets,
+                        const String16 &resourceName,
+                        const sp<AaptFile> &target,
+                        const sp<AaptFile> &outTarget,
+                        ResourceTable *table,
+                        int options) {
     sp<XMLNode> root = XMLNode::parse(target);
     if (root == NULL) {
         return UNKNOWN_ERROR;
     }
-    
+
     return compileXmlFile(bundle, assets, resourceName, root, outTarget, table, options);
 }
 
-status_t compileXmlFile(const Bundle* bundle,
-                        const sp<AaptAssets>& assets,
-                        const String16& resourceName,
-                        const sp<XMLNode>& root,
-                        const sp<AaptFile>& target,
-                        ResourceTable* table,
-                        int options)
-{
-    if ((options&XML_COMPILE_STRIP_WHITESPACE) != 0) {
+status_t compileXmlFile(const Bundle *bundle,
+                        const sp<AaptAssets> &assets,
+                        const String16 &resourceName,
+                        const sp<XMLNode> &root,
+                        const sp<AaptFile> &target,
+                        ResourceTable *table,
+                        int options) {
+    if ((options & XML_COMPILE_STRIP_WHITESPACE) != 0) {
         root->removeWhitespace(true, NULL);
-    } else  if ((options&XML_COMPILE_COMPACT_WHITESPACE) != 0) {
+    } else if ((options & XML_COMPILE_COMPACT_WHITESPACE) != 0) {
         root->removeWhitespace(false, NULL);
     }
 
-    if ((options&XML_COMPILE_UTF8) != 0) {
+    if ((options & XML_COMPILE_UTF8) != 0) {
         root->setUTF8(true);
     }
 
     if (table->processBundleFormat(bundle, resourceName, target, root) != NO_ERROR) {
         return UNKNOWN_ERROR;
     }
-    
+
     bool hasErrors = false;
-    if ((options&XML_COMPILE_ASSIGN_ATTRIBUTE_IDS) != 0) {
+    if ((options & XML_COMPILE_ASSIGN_ATTRIBUTE_IDS) != 0) {
         status_t err = root->assignResourceIds(assets, table);
         if (err != NO_ERROR) {
             hasErrors = true;
         }
     }
 
-    if ((options&XML_COMPILE_PARSE_VALUES) != 0) {
+    if ((options & XML_COMPILE_PARSE_VALUES) != 0) {
         status_t err = root->parseValues(assets, table);
         if (err != NO_ERROR) {
             hasErrors = true;
@@ -120,8 +111,8 @@ status_t compileXmlFile(const Bundle* bundle,
         root->print();
     }
     status_t err = root->flatten(target,
-            (options&XML_COMPILE_STRIP_COMMENTS) != 0,
-            (options&XML_COMPILE_STRIP_RAW_VALUES) != 0);
+                                 (options & XML_COMPILE_STRIP_COMMENTS) != 0,
+                                 (options & XML_COMPILE_STRIP_RAW_VALUES) != 0);
     if (err != NO_ERROR) {
         return err;
     }
@@ -134,99 +125,97 @@ status_t compileXmlFile(const Bundle* bundle,
     }
 
     target->setCompressionMethod(ZipEntry::kCompressDeflated);
-    
+
     return err;
 }
 
-struct flag_entry
-{
-    const char16_t* name;
+struct flag_entry {
+    const char16_t *name;
     size_t nameLen;
     uint32_t value;
-    const char* description;
+    const char *description;
 };
 
 static const char16_t referenceArray[] =
-    { 'r', 'e', 'f', 'e', 'r', 'e', 'n', 'c', 'e' };
+        {'r', 'e', 'f', 'e', 'r', 'e', 'n', 'c', 'e'};
 static const char16_t stringArray[] =
-    { 's', 't', 'r', 'i', 'n', 'g' };
+        {'s', 't', 'r', 'i', 'n', 'g'};
 static const char16_t integerArray[] =
-    { 'i', 'n', 't', 'e', 'g', 'e', 'r' };
+        {'i', 'n', 't', 'e', 'g', 'e', 'r'};
 static const char16_t booleanArray[] =
-    { 'b', 'o', 'o', 'l', 'e', 'a', 'n' };
+        {'b', 'o', 'o', 'l', 'e', 'a', 'n'};
 static const char16_t colorArray[] =
-    { 'c', 'o', 'l', 'o', 'r' };
+        {'c', 'o', 'l', 'o', 'r'};
 static const char16_t floatArray[] =
-    { 'f', 'l', 'o', 'a', 't' };
+        {'f', 'l', 'o', 'a', 't'};
 static const char16_t dimensionArray[] =
-    { 'd', 'i', 'm', 'e', 'n', 's', 'i', 'o', 'n' };
+        {'d', 'i', 'm', 'e', 'n', 's', 'i', 'o', 'n'};
 static const char16_t fractionArray[] =
-    { 'f', 'r', 'a', 'c', 't', 'i', 'o', 'n' };
+        {'f', 'r', 'a', 'c', 't', 'i', 'o', 'n'};
 static const char16_t enumArray[] =
-    { 'e', 'n', 'u', 'm' };
+        {'e', 'n', 'u', 'm'};
 static const char16_t flagsArray[] =
-    { 'f', 'l', 'a', 'g', 's' };
+        {'f', 'l', 'a', 'g', 's'};
 
 static const flag_entry gFormatFlags[] = {
-    { referenceArray, sizeof(referenceArray)/2, ResTable_map::TYPE_REFERENCE,
-      "a reference to another resource, in the form \"<code>@[+][<i>package</i>:]<i>type</i>:<i>name</i></code>\"\n"
-      "or to a theme attribute in the form \"<code>?[<i>package</i>:][<i>type</i>:]<i>name</i></code>\"."},
-    { stringArray, sizeof(stringArray)/2, ResTable_map::TYPE_STRING,
-      "a string value, using '\\\\;' to escape characters such as '\\\\n' or '\\\\uxxxx' for a unicode character." },
-    { integerArray, sizeof(integerArray)/2, ResTable_map::TYPE_INTEGER,
-      "an integer value, such as \"<code>100</code>\"." },
-    { booleanArray, sizeof(booleanArray)/2, ResTable_map::TYPE_BOOLEAN,
-      "a boolean value, either \"<code>true</code>\" or \"<code>false</code>\"." },
-    { colorArray, sizeof(colorArray)/2, ResTable_map::TYPE_COLOR,
-      "a color value, in the form of \"<code>#<i>rgb</i></code>\", \"<code>#<i>argb</i></code>\",\n"
-      "\"<code>#<i>rrggbb</i></code>\", or \"<code>#<i>aarrggbb</i></code>\"." },
-    { floatArray, sizeof(floatArray)/2, ResTable_map::TYPE_FLOAT,
-      "a floating point value, such as \"<code>1.2</code>\"."},
-    { dimensionArray, sizeof(dimensionArray)/2, ResTable_map::TYPE_DIMENSION,
-      "a dimension value, which is a floating point number appended with a unit such as \"<code>14.5sp</code>\".\n"
-      "Available units are: px (pixels), dp (density-independent pixels), sp (scaled pixels based on preferred font size),\n"
-      "in (inches), mm (millimeters)." },
-    { fractionArray, sizeof(fractionArray)/2, ResTable_map::TYPE_FRACTION,
-      "a fractional value, which is a floating point number appended with either % or %p, such as \"<code>14.5%</code>\".\n"
-      "The % suffix always means a percentage of the base size; the optional %p suffix provides a size relative to\n"
-      "some parent container." },
-    { enumArray, sizeof(enumArray)/2, ResTable_map::TYPE_ENUM, NULL },
-    { flagsArray, sizeof(flagsArray)/2, ResTable_map::TYPE_FLAGS, NULL },
-    { NULL, 0, 0, NULL }
+        {referenceArray, sizeof(referenceArray) / 2, ResTable_map::TYPE_REFERENCE,
+                "a reference to another resource, in the form \"<code>@[+][<i>package</i>:]<i>type</i>:<i>name</i></code>\"\n"
+                        "or to a theme attribute in the form \"<code>?[<i>package</i>:][<i>type</i>:]<i>name</i></code>\"."},
+        {stringArray,    sizeof(stringArray) / 2,    ResTable_map::TYPE_STRING,
+                "a string value, using '\\\\;' to escape characters such as '\\\\n' or '\\\\uxxxx' for a unicode character."},
+        {integerArray,   sizeof(integerArray) / 2,   ResTable_map::TYPE_INTEGER,
+                "an integer value, such as \"<code>100</code>\"."},
+        {booleanArray,   sizeof(booleanArray) / 2,   ResTable_map::TYPE_BOOLEAN,
+                "a boolean value, either \"<code>true</code>\" or \"<code>false</code>\"."},
+        {colorArray,     sizeof(colorArray) / 2,     ResTable_map::TYPE_COLOR,
+                "a color value, in the form of \"<code>#<i>rgb</i></code>\", \"<code>#<i>argb</i></code>\",\n"
+                        "\"<code>#<i>rrggbb</i></code>\", or \"<code>#<i>aarrggbb</i></code>\"."},
+        {floatArray,     sizeof(floatArray) / 2,     ResTable_map::TYPE_FLOAT,
+                "a floating point value, such as \"<code>1.2</code>\"."},
+        {dimensionArray, sizeof(dimensionArray) / 2, ResTable_map::TYPE_DIMENSION,
+                "a dimension value, which is a floating point number appended with a unit such as \"<code>14.5sp</code>\".\n"
+                        "Available units are: px (pixels), dp (density-independent pixels), sp (scaled pixels based on preferred font size),\n"
+                        "in (inches), mm (millimeters)."},
+        {fractionArray,  sizeof(fractionArray) / 2,  ResTable_map::TYPE_FRACTION,
+                "a fractional value, which is a floating point number appended with either % or %p, such as \"<code>14.5%</code>\".\n"
+                        "The % suffix always means a percentage of the base size; the optional %p suffix provides a size relative to\n"
+                        "some parent container."},
+        {enumArray,      sizeof(enumArray) / 2,      ResTable_map::TYPE_ENUM,  NULL},
+        {flagsArray,     sizeof(flagsArray) / 2,     ResTable_map::TYPE_FLAGS, NULL},
+        {NULL,           0,                          0,                        NULL}
 };
 
-static const char16_t suggestedArray[] = { 's', 'u', 'g', 'g', 'e', 's', 't', 'e', 'd' };
+static const char16_t suggestedArray[] = {'s', 'u', 'g', 'g', 'e', 's', 't', 'e', 'd'};
 
 static const flag_entry l10nRequiredFlags[] = {
-    { suggestedArray, sizeof(suggestedArray)/2, ResTable_map::L10N_SUGGESTED, NULL },
-    { NULL, 0, 0, NULL }
+        {suggestedArray, sizeof(suggestedArray) / 2, ResTable_map::L10N_SUGGESTED, NULL},
+        {NULL,           0,                          0,                            NULL}
 };
 
-static const char16_t nulStr[] = { 0 };
+static const char16_t nulStr[] = {0};
 
-static uint32_t parse_flags(const char16_t* str, size_t len,
-                             const flag_entry* flags, bool* outError = NULL)
-{
+static uint32_t parse_flags(const char16_t *str, size_t len,
+                            const flag_entry *flags, bool *outError = NULL) {
     while (len > 0 && isspace(*str)) {
         str++;
         len--;
     }
-    while (len > 0 && isspace(str[len-1])) {
+    while (len > 0 && isspace(str[len - 1])) {
         len--;
     }
 
-    const char16_t* const end = str + len;
+    const char16_t *const end = str + len;
     uint32_t value = 0;
 
     while (str < end) {
-        const char16_t* div = str;
+        const char16_t *div = str;
         while (div < end && *div != '|') {
             div++;
         }
 
-        const flag_entry* cur = flags;
+        const flag_entry *cur = flags;
         while (cur->name) {
-            if (strzcmp16(cur->name, cur->nameLen, str, div-str) == 0) {
+            if (strzcmp16(cur->name, cur->nameLen, str, div - str) == 0) {
                 value |= cur->value;
                 break;
             }
@@ -238,29 +227,27 @@ static uint32_t parse_flags(const char16_t* str, size_t len,
             return 0;
         }
 
-        str = div < end ? div+1 : div;
+        str = div < end ? div + 1 : div;
     }
 
     if (outError) *outError = false;
     return value;
 }
 
-static String16 mayOrMust(int type, int flags)
-{
-    if ((type&(~flags)) == 0) {
+static String16 mayOrMust(int type, int flags) {
+    if ((type & (~flags)) == 0) {
         return String16("<p>Must");
     }
-    
+
     return String16("<p>May");
 }
 
-static void appendTypeInfo(ResourceTable* outTable, const String16& pkg,
-        const String16& typeName, const String16& ident, int type,
-        const flag_entry* flags)
-{
+static void appendTypeInfo(ResourceTable *outTable, const String16 &pkg,
+                           const String16 &typeName, const String16 &ident, int type,
+                           const flag_entry *flags) {
     bool hadType = false;
     while (flags->name) {
-        if ((type&flags->value) != 0 && flags->description != NULL) {
+        if ((type & flags->value) != 0 && flags->description != NULL) {
             String16 fullMsg(mayOrMust(type, flags->value));
             fullMsg.append(String16(" be "));
             fullMsg.append(String16(flags->description));
@@ -269,18 +256,18 @@ static void appendTypeInfo(ResourceTable* outTable, const String16& pkg,
         }
         flags++;
     }
-    if (hadType && (type&ResTable_map::TYPE_REFERENCE) == 0) {
+    if (hadType && (type & ResTable_map::TYPE_REFERENCE) == 0) {
         outTable->appendTypeComment(pkg, typeName, ident,
-                String16("<p>This may also be a reference to a resource (in the form\n"
-                         "\"<code>@[<i>package</i>:]<i>type</i>:<i>name</i></code>\") or\n"
-                         "theme attribute (in the form\n"
-                         "\"<code>?[<i>package</i>:][<i>type</i>:]<i>name</i></code>\")\n"
-                         "containing a value of this type."));
+                                    String16(
+                                            "<p>This may also be a reference to a resource (in the form\n"
+                                                    "\"<code>@[<i>package</i>:]<i>type</i>:<i>name</i></code>\") or\n"
+                                                    "theme attribute (in the form\n"
+                                                    "\"<code>?[<i>package</i>:][<i>type</i>:]<i>name</i></code>\")\n"
+                                                    "containing a value of this type."));
     }
 }
 
-struct PendingAttribute
-{
+struct PendingAttribute {
     const String16 myPackage;
     const SourcePos sourcePos;
     const bool appendComment;
@@ -289,20 +276,15 @@ struct PendingAttribute
     String16 comment;
     bool hasErrors;
     bool added;
-    
-    PendingAttribute(String16 _package, const sp<AaptFile>& in,
-            ResXMLTree& block, bool _appendComment)
-        : myPackage(_package)
-        , sourcePos(in->getPrintableSource(), block.getLineNumber())
-        , appendComment(_appendComment)
-        , type(ResTable_map::TYPE_ANY)
-        , hasErrors(false)
-        , added(false)
-    {
+
+    PendingAttribute(String16 _package, const sp<AaptFile> &in,
+                     ResXMLTree &block, bool _appendComment)
+            : myPackage(_package), sourcePos(in->getPrintableSource(), block.getLineNumber()),
+              appendComment(_appendComment), type(ResTable_map::TYPE_ANY), hasErrors(false),
+              added(false) {
     }
-    
-    status_t createIfNeeded(ResourceTable* outTable)
-    {
+
+    status_t createIfNeeded(ResourceTable *outTable) {
         if (added || hasErrors) {
             return NO_ERROR;
         }
@@ -316,15 +298,14 @@ struct PendingAttribute
     }
 };
 
-static status_t compileAttribute(const sp<AaptFile>& in,
-                                 ResXMLTree& block,
-                                 const String16& myPackage,
-                                 ResourceTable* outTable,
-                                 String16* outIdent = NULL,
-                                 bool inStyleable = false)
-{
+static status_t compileAttribute(const sp<AaptFile> &in,
+                                 ResXMLTree &block,
+                                 const String16 &myPackage,
+                                 ResourceTable *outTable,
+                                 String16 *outIdent = NULL,
+                                 bool inStyleable = false) {
     PendingAttribute attr(myPackage, in, block, inStyleable);
-    
+
     const String16 attr16("attr");
     const String16 id16("id");
 
@@ -335,7 +316,7 @@ static status_t compileAttribute(const sp<AaptFile>& in,
     ResXMLTree::event_code_t code;
     size_t len;
     status_t err;
-    
+
     ssize_t identIdx = block.indexOfAttribute(NULL, "name");
     if (identIdx >= 0) {
         attr.ident = String16(block.getAttributeStringValue(identIdx, &len));
@@ -356,7 +337,7 @@ static status_t compileAttribute(const sp<AaptFile>& in,
         attr.type = parse_flags(typeStr.string(), typeStr.size(), gFormatFlags);
         if (attr.type == 0) {
             attr.sourcePos.error("Tag <attr> 'format' attribute value \"%s\" not valid\n",
-                    String8(typeStr).string());
+                                 String8(typeStr).string());
             attr.hasErrors = true;
         }
         attr.createIfNeeded(outTable);
@@ -373,13 +354,13 @@ static status_t compileAttribute(const sp<AaptFile>& in,
         String16 val = String16(block.getAttributeStringValue(minIdx, &len));
         if (!ResTable::stringToInt(val.string(), val.size(), NULL)) {
             attr.sourcePos.error("Tag <attr> 'min' attribute must be a number, not \"%s\"\n",
-                    String8(val).string());
+                                 String8(val).string());
             attr.hasErrors = true;
         }
         attr.createIfNeeded(outTable);
         if (!attr.hasErrors) {
             err = outTable->addBag(attr.sourcePos, myPackage, attr16, attr.ident,
-                    String16(""), String16("^min"), String16(val), NULL, NULL);
+                                   String16(""), String16("^min"), String16(val), NULL, NULL);
             if (err != NO_ERROR) {
                 attr.hasErrors = true;
             }
@@ -391,30 +372,30 @@ static status_t compileAttribute(const sp<AaptFile>& in,
         String16 val = String16(block.getAttributeStringValue(maxIdx, &len));
         if (!ResTable::stringToInt(val.string(), val.size(), NULL)) {
             attr.sourcePos.error("Tag <attr> 'max' attribute must be a number, not \"%s\"\n",
-                    String8(val).string());
+                                 String8(val).string());
             attr.hasErrors = true;
         }
         attr.createIfNeeded(outTable);
         if (!attr.hasErrors) {
             err = outTable->addBag(attr.sourcePos, myPackage, attr16, attr.ident,
-                    String16(""), String16("^max"), String16(val), NULL, NULL);
+                                   String16(""), String16("^max"), String16(val), NULL, NULL);
             attr.hasErrors = true;
         }
     }
 
-    if ((minIdx >= 0 || maxIdx >= 0) && (attr.type&ResTable_map::TYPE_INTEGER) == 0) {
+    if ((minIdx >= 0 || maxIdx >= 0) && (attr.type & ResTable_map::TYPE_INTEGER) == 0) {
         attr.sourcePos.error("Tag <attr> must have format=integer attribute if using max or min\n");
         attr.hasErrors = true;
     }
 
     ssize_t l10nIdx = block.indexOfAttribute(NULL, "localization");
     if (l10nIdx >= 0) {
-        const char16_t* str = block.getAttributeStringValue(l10nIdx, &len);
+        const char16_t *str = block.getAttributeStringValue(l10nIdx, &len);
         bool error;
         uint32_t l10n_required = parse_flags(str, len, l10nRequiredFlags, &error);
         if (error) {
             attr.sourcePos.error("Tag <attr> 'localization' attribute value \"%s\" not valid\n",
-                    String8(str).string());
+                                 String8(str).string());
             attr.hasErrors = true;
         }
         attr.createIfNeeded(outTable);
@@ -422,7 +403,7 @@ static status_t compileAttribute(const sp<AaptFile>& in,
             char buf[11];
             sprintf(buf, "%d", l10n_required);
             err = outTable->addBag(attr.sourcePos, myPackage, attr16, attr.ident,
-                    String16(""), String16("^l10n"), String16(buf), NULL, NULL);
+                                   String16(""), String16("^l10n"), String16(buf), NULL, NULL);
             if (err != NO_ERROR) {
                 attr.hasErrors = true;
             }
@@ -430,8 +411,8 @@ static status_t compileAttribute(const sp<AaptFile>& in,
     }
 
     String16 enumOrFlagsComment;
-    
-    while ((code=block.next()) != ResXMLTree::END_DOCUMENT && code != ResXMLTree::BAD_DOCUMENT) {
+
+    while ((code = block.next()) != ResXMLTree::END_DOCUMENT && code != ResXMLTree::BAD_DOCUMENT) {
         if (code == ResXMLTree::START_TAG) {
             uint32_t localType = 0;
             if (strcmp16(block.getElementName(&len), enum16.string()) == 0) {
@@ -441,32 +422,35 @@ static status_t compileAttribute(const sp<AaptFile>& in,
             } else {
                 SourcePos(in->getPrintableSource(), block.getLineNumber())
                         .error("Tag <%s> can not appear inside <attr>, only <enum> or <flag>\n",
-                        String8(block.getElementName(&len)).string());
+                               String8(block.getElementName(&len)).string());
                 return UNKNOWN_ERROR;
             }
 
             attr.createIfNeeded(outTable);
-            
+
             if (attr.type == ResTable_map::TYPE_ANY) {
                 // No type was explicitly stated, so supplying enum tags
                 // implicitly creates an enum or flag.
                 attr.type = 0;
             }
 
-            if ((attr.type&(ResTable_map::TYPE_ENUM|ResTable_map::TYPE_FLAGS)) == 0) {
+            if ((attr.type & (ResTable_map::TYPE_ENUM | ResTable_map::TYPE_FLAGS)) == 0) {
                 // Wasn't originally specified as an enum, so update its type.
                 attr.type |= localType;
                 if (!attr.hasErrors) {
                     char numberStr[16];
                     sprintf(numberStr, "%d", attr.type);
-                    err = outTable->addBag(SourcePos(in->getPrintableSource(), block.getLineNumber()),
+                    err = outTable->addBag(
+                            SourcePos(in->getPrintableSource(), block.getLineNumber()),
                             myPackage, attr16, attr.ident, String16(""),
                             String16("^type"), String16(numberStr), NULL, NULL, true);
                     if (err != NO_ERROR) {
                         attr.hasErrors = true;
                     }
                 }
-            } else if ((uint32_t)(attr.type&(ResTable_map::TYPE_ENUM|ResTable_map::TYPE_FLAGS)) != localType) {
+            } else if (
+                    (uint32_t) (attr.type & (ResTable_map::TYPE_ENUM | ResTable_map::TYPE_FLAGS)) !=
+                    localType) {
                 if (localType == ResTable_map::TYPE_ENUM) {
                     SourcePos(in->getPrintableSource(), block.getLineNumber())
                             .error("<enum> attribute can not be used inside a flags format\n");
@@ -500,25 +484,28 @@ static status_t compileAttribute(const sp<AaptFile>& in,
             if (!attr.hasErrors && !ResTable::stringToInt(value.string(), value.size(), NULL)) {
                 SourcePos(in->getPrintableSource(), block.getLineNumber())
                         .error("Tag <enum> or <flag> 'value' attribute must be a number,"
-                        " not \"%s\"\n",
-                        String8(value).string());
+                                       " not \"%s\"\n",
+                               String8(value).string());
                 attr.hasErrors = true;
             }
 
             if (!attr.hasErrors) {
                 if (enumOrFlagsComment.size() == 0) {
                     enumOrFlagsComment.append(mayOrMust(attr.type,
-                            ResTable_map::TYPE_ENUM|ResTable_map::TYPE_FLAGS));
-                    enumOrFlagsComment.append((attr.type&ResTable_map::TYPE_ENUM)
-                                       ? String16(" be one of the following constant values.")
-                                       : String16(" be one or more (separated by '|') of the following constant values."));
+                                                        ResTable_map::TYPE_ENUM |
+                                                        ResTable_map::TYPE_FLAGS));
+                    enumOrFlagsComment.append((attr.type & ResTable_map::TYPE_ENUM)
+                                              ? String16(
+                                    " be one of the following constant values.")
+                                              : String16(
+                                    " be one or more (separated by '|') of the following constant values."));
                     enumOrFlagsComment.append(String16("</p>\n<table>\n"
-                                                "<colgroup align=\"left\" />\n"
-                                                "<colgroup align=\"left\" />\n"
-                                                "<colgroup align=\"left\" />\n"
-                                                "<tr><th>Constant</th><th>Value</th><th>Description</th></tr>"));
+                                                               "<colgroup align=\"left\" />\n"
+                                                               "<colgroup align=\"left\" />\n"
+                                                               "<colgroup align=\"left\" />\n"
+                                                               "<tr><th>Constant</th><th>Value</th><th>Description</th></tr>"));
                 }
-                
+
                 enumOrFlagsComment.append(String16("\n<tr><td><code>"));
                 enumOrFlagsComment.append(itemIdent);
                 enumOrFlagsComment.append(String16("</code></td><td>"));
@@ -528,7 +515,7 @@ static status_t compileAttribute(const sp<AaptFile>& in,
                     enumOrFlagsComment.append(String16(block.getComment(&len)));
                 }
                 enumOrFlagsComment.append(String16("</td></tr>"));
-                
+
                 err = outTable->addBag(SourcePos(in->getPrintableSource(), block.getLineNumber()),
                                        myPackage,
                                        attr16, attr.ident, String16(""),
@@ -541,28 +528,28 @@ static status_t compileAttribute(const sp<AaptFile>& in,
             if (strcmp16(block.getElementName(&len), attr16.string()) == 0) {
                 break;
             }
-            if ((attr.type&ResTable_map::TYPE_ENUM) != 0) {
+            if ((attr.type & ResTable_map::TYPE_ENUM) != 0) {
                 if (strcmp16(block.getElementName(&len), enum16.string()) != 0) {
                     SourcePos(in->getPrintableSource(), block.getLineNumber())
                             .error("Found tag </%s> where </enum> is expected\n",
-                            String8(block.getElementName(&len)).string());
+                                   String8(block.getElementName(&len)).string());
                     return UNKNOWN_ERROR;
                 }
             } else {
                 if (strcmp16(block.getElementName(&len), flag16.string()) != 0) {
                     SourcePos(in->getPrintableSource(), block.getLineNumber())
                             .error("Found tag </%s> where </flag> is expected\n",
-                            String8(block.getElementName(&len)).string());
+                                   String8(block.getElementName(&len)).string());
                     return UNKNOWN_ERROR;
                 }
             }
         }
     }
-    
+
     if (!attr.hasErrors && attr.added) {
         appendTypeInfo(outTable, myPackage, attr16, attr.ident, attr.type, gFormatFlags);
     }
-    
+
     if (!attr.hasErrors && enumOrFlagsComment.size() > 0) {
         enumOrFlagsComment.append(String16("\n</table>"));
         outTable->appendTypeComment(myPackage, attr16, attr.ident, enumOrFlagsComment);
@@ -572,27 +559,25 @@ static status_t compileAttribute(const sp<AaptFile>& in,
     return NO_ERROR;
 }
 
-bool localeIsDefined(const ResTable_config& config)
-{
+bool localeIsDefined(const ResTable_config &config) {
     return config.locale == 0;
 }
 
-status_t parseAndAddBag(Bundle* bundle,
-                        const sp<AaptFile>& in,
-                        ResXMLTree* block,
-                        const ResTable_config& config,
-                        const String16& myPackage,
-                        const String16& curType,
-                        const String16& ident,
-                        const String16& parentIdent,
-                        const String16& itemIdent,
+status_t parseAndAddBag(Bundle *bundle,
+                        const sp<AaptFile> &in,
+                        ResXMLTree *block,
+                        const ResTable_config &config,
+                        const String16 &myPackage,
+                        const String16 &curType,
+                        const String16 &ident,
+                        const String16 &parentIdent,
+                        const String16 &itemIdent,
                         int32_t curFormat,
                         bool isFormatted,
-                        const String16& /* product */,
+                        const String16 & /* product */,
                         PseudolocalizationMethod pseudolocalize,
                         const bool overwrite,
-                        ResourceTable* outTable)
-{
+                        ResourceTable *outTable) {
     status_t err;
     const String16 item16("item");
 
@@ -607,14 +592,14 @@ status_t parseAndAddBag(Bundle* bundle,
 
     if (kIsDebug) {
         printf("Adding resource bag entry l=%c%c c=%c%c orien=%d d=%d "
-                " pid=%s, bag=%s, id=%s: %s\n",
-                config.language[0], config.language[1],
-                config.country[0], config.country[1],
-                config.orientation, config.density,
-                String8(parentIdent).string(),
-                String8(ident).string(),
-                String8(itemIdent).string(),
-                String8(str).string());
+                       " pid=%s, bag=%s, id=%s: %s\n",
+               config.language[0], config.language[1],
+               config.country[0], config.country[1],
+               config.orientation, config.density,
+               String8(parentIdent).string(),
+               String8(ident).string(),
+               String8(itemIdent).string(),
+               String8(str).string());
     }
 
     err = outTable->addBag(SourcePos(in->getPrintableSource(), block->getLineNumber()),
@@ -627,7 +612,7 @@ status_t parseAndAddBag(Bundle* bundle,
  * Returns true if needle is one of the elements in the comma-separated list
  * haystack, false otherwise.
  */
-bool isInProductList(const String16& needle, const String16& haystack) {
+bool isInProductList(const String16 &needle, const String16 &haystack) {
     const char16_t *needle2 = needle.string();
     const char16_t *haystack2 = haystack.string();
     size_t needlesize = needle.size();
@@ -658,10 +643,13 @@ struct type_ident_pair_t {
     String16 type;
     String16 ident;
 
-    type_ident_pair_t() { };
-    type_ident_pair_t(const String16& t, const String16& i) : type(t), ident(i) { }
-    type_ident_pair_t(const type_ident_pair_t& o) : type(o.type), ident(o.ident) { }
-    inline bool operator < (const type_ident_pair_t& o) const {
+    type_ident_pair_t() {};
+
+    type_ident_pair_t(const String16 &t, const String16 &i) : type(t), ident(i) {}
+
+    type_ident_pair_t(const type_ident_pair_t &o) : type(o.type), ident(o.ident) {}
+
+    inline bool operator<(const type_ident_pair_t &o) const {
         int cmp = compare_type(type, o.type);
         if (cmp < 0) {
             return true;
@@ -674,23 +662,22 @@ struct type_ident_pair_t {
 };
 
 
-status_t parseAndAddEntry(Bundle* bundle,
-                        const sp<AaptFile>& in,
-                        ResXMLTree* block,
-                        const ResTable_config& config,
-                        const String16& myPackage,
-                        const String16& curType,
-                        const String16& ident,
-                        const String16& curTag,
-                        bool curIsStyled,
-                        int32_t curFormat,
-                        bool isFormatted,
-                        const String16& product,
-                        PseudolocalizationMethod pseudolocalize,
-                        const bool overwrite,
-                        KeyedVector<type_ident_pair_t, bool>* skippedResourceNames,
-                        ResourceTable* outTable)
-{
+status_t parseAndAddEntry(Bundle *bundle,
+                          const sp<AaptFile> &in,
+                          ResXMLTree *block,
+                          const ResTable_config &config,
+                          const String16 &myPackage,
+                          const String16 &curType,
+                          const String16 &ident,
+                          const String16 &curTag,
+                          bool curIsStyled,
+                          int32_t curFormat,
+                          bool isFormatted,
+                          const String16 &product,
+                          PseudolocalizationMethod pseudolocalize,
+                          const bool overwrite,
+                          KeyedVector<type_ident_pair_t, bool> *skippedResourceNames,
+                          ResourceTable *outTable) {
     status_t err;
 
     String16 str;
@@ -699,7 +686,7 @@ status_t parseAndAddEntry(Bundle* bundle,
                             curTag, &str, curIsStyled ? &spans : NULL,
                             isFormatted, pseudolocalize);
 
-    if (err < NO_ERROR) { 
+    if (err < NO_ERROR) {
         return err;
     }
 
@@ -740,11 +727,9 @@ status_t parseAndAddEntry(Bundle* bundle,
              * else has matched already.
              */
 
-            if (isInProductList(product, String16(bundleProduct))) {
-                ;
+            if (isInProductList(product, String16(bundleProduct))) { ;
             } else if (strcmp16(String16("default").string(), product.string()) == 0 &&
-                       !outTable->hasBagOrEntry(myPackage, curType, ident, config)) {
-                ;
+                       !outTable->hasBagOrEntry(myPackage, curType, ident, config)) { ;
             } else {
                 return NO_ERROR;
             }
@@ -753,10 +738,10 @@ status_t parseAndAddEntry(Bundle* bundle,
 
     if (kIsDebug) {
         printf("Adding resource entry l=%c%c c=%c%c orien=%d d=%d id=%s: %s\n",
-                config.language[0], config.language[1],
-                config.country[0], config.country[1],
-                config.orientation, config.density,
-                String8(ident).string(), String8(str).string());
+               config.language[0], config.language[1],
+               config.country[0], config.country[1],
+               config.orientation, config.density,
+               String8(ident).string(), String8(str).string());
     }
 
     err = outTable->addEntry(SourcePos(in->getPrintableSource(), block->getLineNumber()),
@@ -766,13 +751,12 @@ status_t parseAndAddEntry(Bundle* bundle,
     return err;
 }
 
-status_t compileResourceFile(Bundle* bundle,
-                             const sp<AaptAssets>& assets,
-                             const sp<AaptFile>& in,
-                             const ResTable_config& defParams,
+status_t compileResourceFile(Bundle *bundle,
+                             const sp<AaptAssets> &assets,
+                             const sp<AaptFile> &in,
+                             const ResTable_config &defParams,
                              const bool overwrite,
-                             ResourceTable* outTable)
-{
+                             ResourceTable *outTable) {
     ResXMLTree block;
     status_t err = parseXMLResource(in, &block, false, true);
     if (err != NO_ERROR) {
@@ -870,16 +854,16 @@ status_t compileResourceFile(Bundle* bundle,
     ResTable_config curParams(defParams);
 
     ResTable_config pseudoParams(curParams);
-        pseudoParams.language[0] = 'e';
-        pseudoParams.language[1] = 'n';
-        pseudoParams.country[0] = 'X';
-        pseudoParams.country[1] = 'A';
+    pseudoParams.language[0] = 'e';
+    pseudoParams.language[1] = 'n';
+    pseudoParams.country[0] = 'X';
+    pseudoParams.country[1] = 'A';
 
     ResTable_config pseudoBidiParams(curParams);
-        pseudoBidiParams.language[0] = 'a';
-        pseudoBidiParams.language[1] = 'r';
-        pseudoBidiParams.country[0] = 'X';
-        pseudoBidiParams.country[1] = 'B';
+    pseudoBidiParams.language[0] = 'a';
+    pseudoBidiParams.language[1] = 'r';
+    pseudoBidiParams.country[0] = 'X';
+    pseudoBidiParams.country[1] = 'B';
 
     // We should skip resources for pseudolocales if they were
     // already added automatically. This is a fix for a transition period when
@@ -891,14 +875,14 @@ status_t compileResourceFile(Bundle* bundle,
          curParams.locale == pseudoBidiParams.locale)) {
         SourcePos(in->getPrintableSource(), 0).warning(
                 "Resource file %s is skipped as pseudolocalization"
-                " was done automatically.",
+                        " was done automatically.",
                 in->getPrintableSource().string());
         return NO_ERROR;
     }
 
-    while ((code=block.next()) != ResXMLTree::END_DOCUMENT && code != ResXMLTree::BAD_DOCUMENT) {
+    while ((code = block.next()) != ResXMLTree::END_DOCUMENT && code != ResXMLTree::BAD_DOCUMENT) {
         if (code == ResXMLTree::START_TAG) {
-            const String16* curTag = NULL;
+            const String16 *curTag = NULL;
             String16 curType;
             String16 curName;
             int32_t curFormat = ResTable_map::TYPE_ANY;
@@ -910,8 +894,8 @@ status_t compileResourceFile(Bundle* bundle,
             bool localHasErrors = false;
 
             if (strcmp16(block.getElementName(&len), skip16.string()) == 0) {
-                while ((code=block.next()) != ResXMLTree::END_DOCUMENT
-                        && code != ResXMLTree::BAD_DOCUMENT) {
+                while ((code = block.next()) != ResXMLTree::END_DOCUMENT
+                       && code != ResXMLTree::BAD_DOCUMENT) {
                     if (code == ResXMLTree::END_TAG) {
                         if (strcmp16(block.getElementName(&len), skip16.string()) == 0) {
                             break;
@@ -921,8 +905,8 @@ status_t compileResourceFile(Bundle* bundle,
                 continue;
 
             } else if (strcmp16(block.getElementName(&len), eat_comment16.string()) == 0) {
-                while ((code=block.next()) != ResXMLTree::END_DOCUMENT
-                        && code != ResXMLTree::BAD_DOCUMENT) {
+                while ((code = block.next()) != ResXMLTree::END_DOCUMENT
+                       && code != ResXMLTree::BAD_DOCUMENT) {
                     if (code == ResXMLTree::END_TAG) {
                         if (strcmp16(block.getElementName(&len), eat_comment16.string()) == 0) {
                             break;
@@ -933,7 +917,7 @@ status_t compileResourceFile(Bundle* bundle,
 
             } else if (strcmp16(block.getElementName(&len), public16.string()) == 0) {
                 SourcePos srcPos(in->getPrintableSource(), block.getLineNumber());
-            
+
                 String16 type;
                 ssize_t typeIdx = block.indexOfAttribute(NULL, "type");
                 if (typeIdx < 0) {
@@ -953,23 +937,24 @@ status_t compileResourceFile(Bundle* bundle,
                 uint32_t ident = 0;
                 ssize_t identIdx = block.indexOfAttribute(NULL, "id");
                 if (identIdx >= 0) {
-                    const char16_t* identStr = block.getAttributeStringValue(identIdx, &len);
+                    const char16_t *identStr = block.getAttributeStringValue(identIdx, &len);
                     Res_value identValue;
                     if (!ResTable::stringToInt(identStr, len, &identValue)) {
                         srcPos.error("Given 'id' attribute is not an integer: %s\n",
-                                String8(block.getAttributeStringValue(identIdx, &len)).string());
+                                     String8(block.getAttributeStringValue(identIdx,
+                                                                           &len)).string());
                         hasErrors = localHasErrors = true;
                     } else {
                         ident = identValue.data;
-                        nextPublicId.replaceValueFor(type, ident+1);
+                        nextPublicId.replaceValueFor(type, ident + 1);
                     }
                 } else if (nextPublicId.indexOfKey(type) < 0) {
                     srcPos.error("No 'id' attribute supplied <public>,"
-                            " and no previous id defined in this file.\n");
+                                         " and no previous id defined in this file.\n");
                     hasErrors = localHasErrors = true;
                 } else if (!localHasErrors) {
                     ident = nextPublicId.valueFor(type);
-                    nextPublicId.replaceValueFor(type, ident+1);
+                    nextPublicId.replaceValueFor(type, ident + 1);
                 }
 
                 if (!localHasErrors) {
@@ -986,7 +971,7 @@ status_t compileResourceFile(Bundle* bundle,
                     if (symbols != NULL) {
                         symbols->makeSymbolPublic(String8(name), srcPos);
                         String16 comment(
-                            block.getComment(&len) ? block.getComment(&len) : nulStr);
+                                block.getComment(&len) ? block.getComment(&len) : nulStr);
                         symbols->appendComment(String8(name), comment, srcPos);
                     } else {
                         srcPos.error("Unable to create symbols!\n");
@@ -994,7 +979,8 @@ status_t compileResourceFile(Bundle* bundle,
                     }
                 }
 
-                while ((code=block.next()) != ResXMLTree::END_DOCUMENT && code != ResXMLTree::BAD_DOCUMENT) {
+                while ((code = block.next()) != ResXMLTree::END_DOCUMENT &&
+                       code != ResXMLTree::BAD_DOCUMENT) {
                     if (code == ResXMLTree::END_TAG) {
                         if (strcmp16(block.getElementName(&len), public16.string()) == 0) {
                             break;
@@ -1005,7 +991,7 @@ status_t compileResourceFile(Bundle* bundle,
 
             } else if (strcmp16(block.getElementName(&len), public_padding16.string()) == 0) {
                 SourcePos srcPos(in->getPrintableSource(), block.getLineNumber());
-            
+
                 String16 type;
                 ssize_t typeIdx = block.indexOfAttribute(NULL, "type");
                 if (typeIdx < 0) {
@@ -1025,18 +1011,19 @@ status_t compileResourceFile(Bundle* bundle,
                 uint32_t start = 0;
                 ssize_t startIdx = block.indexOfAttribute(NULL, "start");
                 if (startIdx >= 0) {
-                    const char16_t* startStr = block.getAttributeStringValue(startIdx, &len);
+                    const char16_t *startStr = block.getAttributeStringValue(startIdx, &len);
                     Res_value startValue;
                     if (!ResTable::stringToInt(startStr, len, &startValue)) {
                         srcPos.error("Given 'start' attribute is not an integer: %s\n",
-                                String8(block.getAttributeStringValue(startIdx, &len)).string());
+                                     String8(block.getAttributeStringValue(startIdx,
+                                                                           &len)).string());
                         hasErrors = localHasErrors = true;
                     } else {
                         start = startValue.data;
                     }
                 } else if (nextPublicId.indexOfKey(type) < 0) {
                     srcPos.error("No 'start' attribute supplied <public-padding>,"
-                            " and no previous id defined in this file.\n");
+                                         " and no previous id defined in this file.\n");
                     hasErrors = localHasErrors = true;
                 } else if (!localHasErrors) {
                     start = nextPublicId.valueFor(type);
@@ -1045,11 +1032,11 @@ status_t compileResourceFile(Bundle* bundle,
                 uint32_t end = 0;
                 ssize_t endIdx = block.indexOfAttribute(NULL, "end");
                 if (endIdx >= 0) {
-                    const char16_t* endStr = block.getAttributeStringValue(endIdx, &len);
+                    const char16_t *endStr = block.getAttributeStringValue(endIdx, &len);
                     Res_value endValue;
                     if (!ResTable::stringToInt(endStr, len, &endValue)) {
                         srcPos.error("Given 'end' attribute is not an integer: %s\n",
-                                String8(block.getAttributeStringValue(endIdx, &len)).string());
+                                     String8(block.getAttributeStringValue(endIdx, &len)).string());
                         hasErrors = localHasErrors = true;
                     } else {
                         end = endValue.data;
@@ -1060,24 +1047,24 @@ status_t compileResourceFile(Bundle* bundle,
                 }
 
                 if (end >= start) {
-                    nextPublicId.replaceValueFor(type, end+1);
+                    nextPublicId.replaceValueFor(type, end + 1);
                 } else {
                     srcPos.error("Padding start '%ul' is after end '%ul'\n",
-                            start, end);
+                                 start, end);
                     hasErrors = localHasErrors = true;
                 }
-                
+
                 String16 comment(
-                    block.getComment(&len) ? block.getComment(&len) : nulStr);
-                for (uint32_t curIdent=start; curIdent<=end; curIdent++) {
+                        block.getComment(&len) ? block.getComment(&len) : nulStr);
+                for (uint32_t curIdent = start; curIdent <= end; curIdent++) {
                     if (localHasErrors) {
                         break;
                     }
                     String16 curName(name);
                     char buf[64];
-                    sprintf(buf, "%d", (int)(end-curIdent+1));
+                    sprintf(buf, "%d", (int) (end - curIdent + 1));
                     curName.append(String16(buf));
-                    
+
                     err = outTable->addEntry(srcPos, myPackage, type, curName,
                                              String16("padding"), NULL, &curParams, false,
                                              ResTable_map::TYPE_STRING, overwrite);
@@ -1086,7 +1073,7 @@ status_t compileResourceFile(Bundle* bundle,
                         break;
                     }
                     err = outTable->addPublic(srcPos, myPackage, type,
-                            curName, curIdent);
+                                              curName, curIdent);
                     if (err < NO_ERROR) {
                         hasErrors = localHasErrors = true;
                         break;
@@ -1104,7 +1091,8 @@ status_t compileResourceFile(Bundle* bundle,
                     }
                 }
 
-                while ((code=block.next()) != ResXMLTree::END_DOCUMENT && code != ResXMLTree::BAD_DOCUMENT) {
+                while ((code = block.next()) != ResXMLTree::END_DOCUMENT &&
+                       code != ResXMLTree::BAD_DOCUMENT) {
                     if (code == ResXMLTree::END_TAG) {
                         if (strcmp16(block.getElementName(&len), public_padding16.string()) == 0) {
                             break;
@@ -1125,7 +1113,7 @@ status_t compileResourceFile(Bundle* bundle,
                 if (!localHasErrors) {
                     SourcePos(in->getPrintableSource(), block.getLineNumber()).warning(
                             "<private-symbols> is deprecated. Use the command line flag "
-                            "--private-symbols instead.\n");
+                                    "--private-symbols instead.\n");
                     if (assets->havePrivateSymbols()) {
                         SourcePos(in->getPrintableSource(), block.getLineNumber()).warning(
                                 "private symbol package already specified. Ignoring...\n");
@@ -1134,7 +1122,8 @@ status_t compileResourceFile(Bundle* bundle,
                     }
                 }
 
-                while ((code=block.next()) != ResXMLTree::END_DOCUMENT && code != ResXMLTree::BAD_DOCUMENT) {
+                while ((code = block.next()) != ResXMLTree::END_DOCUMENT &&
+                       code != ResXMLTree::BAD_DOCUMENT) {
                     if (code == ResXMLTree::END_TAG) {
                         if (strcmp16(block.getElementName(&len), private_symbols16.string()) == 0) {
                             break;
@@ -1145,7 +1134,7 @@ status_t compileResourceFile(Bundle* bundle,
 
             } else if (strcmp16(block.getElementName(&len), java_symbol16.string()) == 0) {
                 SourcePos srcPos(in->getPrintableSource(), block.getLineNumber());
-            
+
                 String16 type;
                 ssize_t typeIdx = block.indexOfAttribute(NULL, "type");
                 if (typeIdx < 0) {
@@ -1169,14 +1158,15 @@ status_t compileResourceFile(Bundle* bundle,
                 if (symbols != NULL) {
                     symbols->makeSymbolJavaSymbol(String8(name), srcPos);
                     String16 comment(
-                        block.getComment(&len) ? block.getComment(&len) : nulStr);
+                            block.getComment(&len) ? block.getComment(&len) : nulStr);
                     symbols->appendComment(String8(name), comment, srcPos);
                 } else {
                     srcPos.error("Unable to create symbols!\n");
                     hasErrors = localHasErrors = true;
                 }
 
-                while ((code=block.next()) != ResXMLTree::END_DOCUMENT && code != ResXMLTree::BAD_DOCUMENT) {
+                while ((code = block.next()) != ResXMLTree::END_DOCUMENT &&
+                       code != ResXMLTree::BAD_DOCUMENT) {
                     if (code == ResXMLTree::END_TAG) {
                         if (strcmp16(block.getElementName(&len), java_symbol16.string()) == 0) {
                             break;
@@ -1188,7 +1178,7 @@ status_t compileResourceFile(Bundle* bundle,
 
             } else if (strcmp16(block.getElementName(&len), add_resource16.string()) == 0) {
                 SourcePos srcPos(in->getPrintableSource(), block.getLineNumber());
-            
+
                 String16 typeName;
                 ssize_t typeIdx = block.indexOfAttribute(NULL, "type");
                 if (typeIdx < 0) {
@@ -1207,7 +1197,8 @@ status_t compileResourceFile(Bundle* bundle,
 
                 outTable->canAddEntry(srcPos, myPackage, typeName, name);
 
-                while ((code=block.next()) != ResXMLTree::END_DOCUMENT && code != ResXMLTree::BAD_DOCUMENT) {
+                while ((code = block.next()) != ResXMLTree::END_DOCUMENT &&
+                       code != ResXMLTree::BAD_DOCUMENT) {
                     if (code == ResXMLTree::END_TAG) {
                         if (strcmp16(block.getElementName(&len), add_resource16.string()) == 0) {
                             break;
@@ -1215,10 +1206,10 @@ status_t compileResourceFile(Bundle* bundle,
                     }
                 }
                 continue;
-                
+
             } else if (strcmp16(block.getElementName(&len), declare_styleable16.string()) == 0) {
                 SourcePos srcPos(in->getPrintableSource(), block.getLineNumber());
-                                
+
                 String16 ident;
                 ssize_t identIdx = block.indexOfAttribute(NULL, "name");
                 if (identIdx < 0) {
@@ -1240,31 +1231,35 @@ status_t compileResourceFile(Bundle* bundle,
                         srcPos.error("Unable to create symbols!\n");
                         return UNKNOWN_ERROR;
                     }
-                    
+
                     String16 comment(
-                        block.getComment(&len) ? block.getComment(&len) : nulStr);
+                            block.getComment(&len) ? block.getComment(&len) : nulStr);
                     styleSymbols->appendComment(String8(ident), comment, srcPos);
                 } else {
                     symbols = NULL;
                 }
 
-                while ((code=block.next()) != ResXMLTree::END_DOCUMENT && code != ResXMLTree::BAD_DOCUMENT) {
+                while ((code = block.next()) != ResXMLTree::END_DOCUMENT &&
+                       code != ResXMLTree::BAD_DOCUMENT) {
                     if (code == ResXMLTree::START_TAG) {
                         if (strcmp16(block.getElementName(&len), skip16.string()) == 0) {
-                            while ((code=block.next()) != ResXMLTree::END_DOCUMENT
+                            while ((code = block.next()) != ResXMLTree::END_DOCUMENT
                                    && code != ResXMLTree::BAD_DOCUMENT) {
                                 if (code == ResXMLTree::END_TAG) {
-                                    if (strcmp16(block.getElementName(&len), skip16.string()) == 0) {
+                                    if (strcmp16(block.getElementName(&len), skip16.string()) ==
+                                        0) {
                                         break;
                                     }
                                 }
                             }
                             continue;
-                        } else if (strcmp16(block.getElementName(&len), eat_comment16.string()) == 0) {
-                            while ((code=block.next()) != ResXMLTree::END_DOCUMENT
+                        } else if (strcmp16(block.getElementName(&len), eat_comment16.string()) ==
+                                   0) {
+                            while ((code = block.next()) != ResXMLTree::END_DOCUMENT
                                    && code != ResXMLTree::BAD_DOCUMENT) {
                                 if (code == ResXMLTree::END_TAG) {
-                                    if (strcmp16(block.getElementName(&len), eat_comment16.string()) == 0) {
+                                    if (strcmp16(block.getElementName(&len),
+                                                 eat_comment16.string()) == 0) {
                                         break;
                                     }
                                 }
@@ -1278,7 +1273,7 @@ status_t compileResourceFile(Bundle* bundle,
                         }
 
                         String16 comment(
-                            block.getComment(&len) ? block.getComment(&len) : nulStr);
+                                block.getComment(&len) ? block.getComment(&len) : nulStr);
                         String16 itemIdent;
                         err = compileAttribute(in, block, myPackage, outTable, &itemIdent, true);
                         if (err != NO_ERROR) {
@@ -1286,14 +1281,16 @@ status_t compileResourceFile(Bundle* bundle,
                         }
 
                         if (symbols != NULL) {
-                            SourcePos srcPos(String8(in->getPrintableSource()), block.getLineNumber());
+                            SourcePos srcPos(String8(in->getPrintableSource()),
+                                             block.getLineNumber());
                             symbols->addSymbol(String8(itemIdent), 0, srcPos);
                             symbols->appendComment(String8(itemIdent), comment, srcPos);
                             //printf("Attribute %s comment: %s\n", String8(itemIdent).string(),
                             //     String8(comment).string());
                         }
                     } else if (code == ResXMLTree::END_TAG) {
-                        if (strcmp16(block.getElementName(&len), declare_styleable16.string()) == 0) {
+                        if (strcmp16(block.getElementName(&len), declare_styleable16.string()) ==
+                            0) {
                             break;
                         }
 
@@ -1352,7 +1349,7 @@ status_t compileResourceFile(Bundle* bundle,
                 size_t n = block.getAttributeCount();
                 for (size_t i = 0; i < n; i++) {
                     size_t length;
-                    const char16_t* attr = block.getAttributeName(i, &length);
+                    const char16_t *attr = block.getAttributeName(i, &length);
                     if (strcmp16(attr, name16.string()) == 0) {
                         name.setTo(block.getAttributeStringValue(i, &length));
                     } else if (strcmp16(attr, translatable16.string()) == 0) {
@@ -1361,7 +1358,7 @@ status_t compileResourceFile(Bundle* bundle,
                         formatted.setTo(block.getAttributeStringValue(i, &length));
                     }
                 }
-                
+
                 if (name.size() > 0) {
                     if (locale.size() == 0) {
                         outTable->addDefaultLocalization(name);
@@ -1396,33 +1393,33 @@ status_t compileResourceFile(Bundle* bundle,
 
                 curTag = &string16;
                 curType = string16;
-                curFormat = ResTable_map::TYPE_REFERENCE|ResTable_map::TYPE_STRING;
+                curFormat = ResTable_map::TYPE_REFERENCE | ResTable_map::TYPE_STRING;
                 curIsStyled = true;
                 curIsPseudolocalizable = fileIsTranslatable && (translatable != false16);
             } else if (strcmp16(block.getElementName(&len), drawable16.string()) == 0) {
                 curTag = &drawable16;
                 curType = drawable16;
-                curFormat = ResTable_map::TYPE_REFERENCE|ResTable_map::TYPE_COLOR;
+                curFormat = ResTable_map::TYPE_REFERENCE | ResTable_map::TYPE_COLOR;
             } else if (strcmp16(block.getElementName(&len), color16.string()) == 0) {
                 curTag = &color16;
                 curType = color16;
-                curFormat = ResTable_map::TYPE_REFERENCE|ResTable_map::TYPE_COLOR;
+                curFormat = ResTable_map::TYPE_REFERENCE | ResTable_map::TYPE_COLOR;
             } else if (strcmp16(block.getElementName(&len), bool16.string()) == 0) {
                 curTag = &bool16;
                 curType = bool16;
-                curFormat = ResTable_map::TYPE_REFERENCE|ResTable_map::TYPE_BOOLEAN;
+                curFormat = ResTable_map::TYPE_REFERENCE | ResTable_map::TYPE_BOOLEAN;
             } else if (strcmp16(block.getElementName(&len), integer16.string()) == 0) {
                 curTag = &integer16;
                 curType = integer16;
-                curFormat = ResTable_map::TYPE_REFERENCE|ResTable_map::TYPE_INTEGER;
+                curFormat = ResTable_map::TYPE_REFERENCE | ResTable_map::TYPE_INTEGER;
             } else if (strcmp16(block.getElementName(&len), dimen16.string()) == 0) {
                 curTag = &dimen16;
                 curType = dimen16;
-                curFormat = ResTable_map::TYPE_REFERENCE|ResTable_map::TYPE_DIMENSION;
+                curFormat = ResTable_map::TYPE_REFERENCE | ResTable_map::TYPE_DIMENSION;
             } else if (strcmp16(block.getElementName(&len), fraction16.string()) == 0) {
                 curTag = &fraction16;
                 curType = fraction16;
-                curFormat = ResTable_map::TYPE_REFERENCE|ResTable_map::TYPE_FRACTION;
+                curFormat = ResTable_map::TYPE_REFERENCE | ResTable_map::TYPE_FRACTION;
             } else if (strcmp16(block.getElementName(&len), bag16.string()) == 0) {
                 curTag = &bag16;
                 curIsBag = true;
@@ -1471,14 +1468,14 @@ status_t compileResourceFile(Bundle* bundle,
                 // translatable.
                 for (size_t i = 0; i < n; i++) {
                     size_t length;
-                    const char16_t* attr = block.getAttributeName(i, &length);
+                    const char16_t *attr = block.getAttributeName(i, &length);
                     if (strcmp16(attr, formatted16.string()) == 0) {
-                        const char16_t* value = block.getAttributeStringValue(i, &length);
+                        const char16_t *value = block.getAttributeStringValue(i, &length);
                         if (strcmp16(value, false16.string()) == 0) {
                             curIsFormatted = false;
                         }
                     } else if (strcmp16(attr, translatable16.string()) == 0) {
-                        const char16_t* value = block.getAttributeStringValue(i, &length);
+                        const char16_t *value = block.getAttributeStringValue(i, &length);
                         if (strcmp16(value, false16.string()) == 0) {
                             isTranslatable = false;
                         }
@@ -1487,14 +1484,14 @@ status_t compileResourceFile(Bundle* bundle,
 
                 curTag = &string_array16;
                 curType = array16;
-                curFormat = ResTable_map::TYPE_REFERENCE|ResTable_map::TYPE_STRING;
+                curFormat = ResTable_map::TYPE_REFERENCE | ResTable_map::TYPE_STRING;
                 curIsBag = true;
                 curIsBagReplaceOnOverwrite = true;
                 curIsPseudolocalizable = isTranslatable && fileIsTranslatable;
             } else if (strcmp16(block.getElementName(&len), integer_array16.string()) == 0) {
                 curTag = &integer_array16;
                 curType = array16;
-                curFormat = ResTable_map::TYPE_REFERENCE|ResTable_map::TYPE_INTEGER;
+                curFormat = ResTable_map::TYPE_REFERENCE | ResTable_map::TYPE_INTEGER;
                 curIsBag = true;
                 curIsBagReplaceOnOverwrite = true;
             } else {
@@ -1522,7 +1519,7 @@ status_t compileResourceFile(Bundle* bundle,
             }
 
             String16 comment(block.getComment(&len) ? block.getComment(&len) : nulStr);
-            
+
             if (curIsBag) {
                 // Figure out the parent of this bag...
                 String16 parentIdent;
@@ -1538,18 +1535,19 @@ status_t compileResourceFile(Bundle* bundle,
 
                 if (!localHasErrors) {
                     err = outTable->startBag(SourcePos(in->getPrintableSource(),
-                            block.getLineNumber()), myPackage, curType, ident,
-                            parentIdent, &curParams,
-                            overwrite, curIsBagReplaceOnOverwrite);
+                                                       block.getLineNumber()), myPackage, curType,
+                                             ident,
+                                             parentIdent, &curParams,
+                                             overwrite, curIsBagReplaceOnOverwrite);
                     if (err != NO_ERROR) {
                         hasErrors = localHasErrors = true;
                     }
                 }
-                
+
                 ssize_t elmIndex = 0;
                 char elmIndexStr[14];
-                while ((code=block.next()) != ResXMLTree::END_DOCUMENT
-                        && code != ResXMLTree::BAD_DOCUMENT) {
+                while ((code = block.next()) != ResXMLTree::END_DOCUMENT
+                       && code != ResXMLTree::BAD_DOCUMENT) {
 
                     if (code == ResXMLTree::START_TAG) {
                         if (strcmp16(block.getElementName(&len), item16.string()) != 0) {
@@ -1562,32 +1560,28 @@ status_t compileResourceFile(Bundle* bundle,
 
                         String16 itemIdent;
                         if (curType == array16) {
-                            sprintf(elmIndexStr, "^index_%d", (int)elmIndex++);
+                            sprintf(elmIndexStr, "^index_%d", (int) elmIndex++);
                             itemIdent = String16(elmIndexStr);
                         } else if (curType == plurals16) {
                             ssize_t itemIdentIdx = block.indexOfAttribute(NULL, "quantity");
                             if (itemIdentIdx >= 0) {
-                                String16 quantity16(block.getAttributeStringValue(itemIdentIdx, &len));
+                                String16 quantity16(
+                                        block.getAttributeStringValue(itemIdentIdx, &len));
                                 if (quantity16 == other16) {
                                     itemIdent = quantityOther16;
-                                }
-                                else if (quantity16 == zero16) {
+                                } else if (quantity16 == zero16) {
                                     itemIdent = quantityZero16;
-                                }
-                                else if (quantity16 == one16) {
+                                } else if (quantity16 == one16) {
                                     itemIdent = quantityOne16;
-                                }
-                                else if (quantity16 == two16) {
+                                } else if (quantity16 == two16) {
                                     itemIdent = quantityTwo16;
-                                }
-                                else if (quantity16 == few16) {
+                                } else if (quantity16 == few16) {
                                     itemIdent = quantityFew16;
-                                }
-                                else if (quantity16 == many16) {
+                                } else if (quantity16 == many16) {
                                     itemIdent = quantityMany16;
-                                }
-                                else {
-                                    SourcePos(in->getPrintableSource(), block.getLineNumber()).error(
+                                } else {
+                                    SourcePos(in->getPrintableSource(),
+                                              block.getLineNumber()).error(
                                             "Illegal 'quantity' attribute is <item> inside <plurals>\n");
                                     hasErrors = localHasErrors = true;
                                 }
@@ -1599,7 +1593,8 @@ status_t compileResourceFile(Bundle* bundle,
                         } else {
                             ssize_t itemIdentIdx = block.indexOfAttribute(NULL, "name");
                             if (itemIdentIdx >= 0) {
-                                itemIdent = String16(block.getAttributeStringValue(itemIdentIdx, &len));
+                                itemIdent = String16(
+                                        block.getAttributeStringValue(itemIdentIdx, &len));
                             } else {
                                 SourcePos(in->getPrintableSource(), block.getLineNumber()).error(
                                         "A 'name' attribute is required for <item>\n");
@@ -1611,27 +1606,32 @@ status_t compileResourceFile(Bundle* bundle,
                         block.getPosition(&parserPosition);
 
                         err = parseAndAddBag(bundle, in, &block, curParams, myPackage, curType,
-                                ident, parentIdent, itemIdent, curFormat, curIsFormatted,
-                                product, NO_PSEUDOLOCALIZATION, overwrite, outTable);
+                                             ident, parentIdent, itemIdent, curFormat,
+                                             curIsFormatted,
+                                             product, NO_PSEUDOLOCALIZATION, overwrite, outTable);
                         if (err == NO_ERROR) {
                             if (curIsPseudolocalizable && localeIsDefined(curParams)
-                                    && bundle->getPseudolocalize() > 0) {
+                                && bundle->getPseudolocalize() > 0) {
                                 // pseudolocalize here
                                 if ((PSEUDO_ACCENTED & bundle->getPseudolocalize()) ==
-                                   PSEUDO_ACCENTED) {
+                                    PSEUDO_ACCENTED) {
                                     block.setPosition(parserPosition);
-                                    err = parseAndAddBag(bundle, in, &block, pseudoParams, myPackage,
-                                            curType, ident, parentIdent, itemIdent, curFormat,
-                                            curIsFormatted, product, PSEUDO_ACCENTED,
-                                            overwrite, outTable);
+                                    err = parseAndAddBag(bundle, in, &block, pseudoParams,
+                                                         myPackage,
+                                                         curType, ident, parentIdent, itemIdent,
+                                                         curFormat,
+                                                         curIsFormatted, product, PSEUDO_ACCENTED,
+                                                         overwrite, outTable);
                                 }
                                 if ((PSEUDO_BIDI & bundle->getPseudolocalize()) ==
-                                   PSEUDO_BIDI) {
+                                    PSEUDO_BIDI) {
                                     block.setPosition(parserPosition);
-                                    err = parseAndAddBag(bundle, in, &block, pseudoBidiParams, myPackage,
-                                            curType, ident, parentIdent, itemIdent, curFormat,
-                                            curIsFormatted, product, PSEUDO_BIDI,
-                                            overwrite, outTable);
+                                    err = parseAndAddBag(bundle, in, &block, pseudoBidiParams,
+                                                         myPackage,
+                                                         curType, ident, parentIdent, itemIdent,
+                                                         curFormat,
+                                                         curIsFormatted, product, PSEUDO_BIDI,
+                                                         overwrite, outTable);
                                 }
                             }
                         }
@@ -1654,34 +1654,38 @@ status_t compileResourceFile(Bundle* bundle,
                 block.getPosition(&parserPosition);
 
                 err = parseAndAddEntry(bundle, in, &block, curParams, myPackage, curType, ident,
-                        *curTag, curIsStyled, curFormat, curIsFormatted,
-                        product, NO_PSEUDOLOCALIZATION, overwrite, &skippedResourceNames, outTable);
+                                       *curTag, curIsStyled, curFormat, curIsFormatted,
+                                       product, NO_PSEUDOLOCALIZATION, overwrite,
+                                       &skippedResourceNames, outTable);
 
                 if (err < NO_ERROR) { // Why err < NO_ERROR instead of err != NO_ERROR?
                     hasErrors = localHasErrors = true;
-                }
-                else if (err == NO_ERROR) {
+                } else if (err == NO_ERROR) {
                     if (curType == string16 && !curParams.language[0] && !curParams.country[0]) {
                         outTable->addDefaultLocalization(curName);
                     }
                     if (curIsPseudolocalizable && localeIsDefined(curParams)
-                            && bundle->getPseudolocalize() > 0) {
+                        && bundle->getPseudolocalize() > 0) {
                         // pseudolocalize here
                         if ((PSEUDO_ACCENTED & bundle->getPseudolocalize()) ==
-                           PSEUDO_ACCENTED) {
+                            PSEUDO_ACCENTED) {
                             block.setPosition(parserPosition);
-                            err = parseAndAddEntry(bundle, in, &block, pseudoParams, myPackage, curType,
-                                    ident, *curTag, curIsStyled, curFormat,
-                                    curIsFormatted, product,
-                                    PSEUDO_ACCENTED, overwrite, &skippedResourceNames, outTable);
+                            err = parseAndAddEntry(bundle, in, &block, pseudoParams, myPackage,
+                                                   curType,
+                                                   ident, *curTag, curIsStyled, curFormat,
+                                                   curIsFormatted, product,
+                                                   PSEUDO_ACCENTED, overwrite,
+                                                   &skippedResourceNames, outTable);
                         }
                         if ((PSEUDO_BIDI & bundle->getPseudolocalize()) ==
-                           PSEUDO_BIDI) {
+                            PSEUDO_BIDI) {
                             block.setPosition(parserPosition);
                             err = parseAndAddEntry(bundle, in, &block, pseudoBidiParams,
-                                    myPackage, curType, ident, *curTag, curIsStyled, curFormat,
-                                    curIsFormatted, product,
-                                    PSEUDO_BIDI, overwrite, &skippedResourceNames, outTable);
+                                                   myPackage, curType, ident, *curTag, curIsStyled,
+                                                   curFormat,
+                                                   curIsFormatted, product,
+                                                   PSEUDO_BIDI, overwrite, &skippedResourceNames,
+                                                   outTable);
                         }
                         if (err != NO_ERROR) {
                             hasErrors = localHasErrors = true;
@@ -1700,17 +1704,14 @@ status_t compileResourceFile(Bundle* bundle,
             if (!localHasErrors) {
                 outTable->appendComment(myPackage, curType, ident, comment, false);
             }
-        }
-        else if (code == ResXMLTree::END_TAG) {
+        } else if (code == ResXMLTree::END_TAG) {
             if (strcmp16(block.getElementName(&len), resources16.string()) != 0) {
                 SourcePos(in->getPrintableSource(), block.getLineNumber()).error(
                         "Unexpected end tag %s\n", String8(block.getElementName(&len)).string());
                 return UNKNOWN_ERROR;
             }
-        }
-        else if (code == ResXMLTree::START_NAMESPACE || code == ResXMLTree::END_NAMESPACE) {
-        }
-        else if (code == ResXMLTree::TEXT) {
+        } else if (code == ResXMLTree::START_NAMESPACE || code == ResXMLTree::END_NAMESPACE) {
+        } else if (code == ResXMLTree::TEXT) {
             if (isWhitespace(block.getText(&len))) {
                 continue;
             }
@@ -1727,17 +1728,17 @@ status_t compileResourceFile(Bundle* bundle,
     // product attribute, some product variant of that resource was processed.
     for (size_t i = 0; i < skippedResourceNames.size(); i++) {
         if (skippedResourceNames[i]) {
-            const type_ident_pair_t& p = skippedResourceNames.keyAt(i);
+            const type_ident_pair_t &p = skippedResourceNames.keyAt(i);
             if (!outTable->hasBagOrEntry(myPackage, p.type, p.ident)) {
-                const char* bundleProduct =
+                const char *bundleProduct =
                         (bundle->getProduct() == NULL) ? "" : bundle->getProduct();
                 fprintf(stderr, "In resource file %s: %s\n",
                         in->getPrintableSource().string(),
                         curParams.toString().string());
 
                 fprintf(stderr, "\t%s '%s' does not match product %s.\n"
-                        "\tYou may have forgotten to include a 'default' product variant"
-                        " of the resource.\n",
+                                "\tYou may have forgotten to include a 'default' product variant"
+                                " of the resource.\n",
                         String8(p.type).string(), String8(p.ident).string(),
                         bundleProduct[0] == 0 ? "default" : bundleProduct);
                 return UNKNOWN_ERROR;
@@ -1748,13 +1749,10 @@ status_t compileResourceFile(Bundle* bundle,
     return hasErrors ? STATUST(UNKNOWN_ERROR) : NO_ERROR;
 }
 
-ResourceTable::ResourceTable(Bundle* bundle, const String16& assetsPackage, ResourceTable::PackageType type)
-    : mAssetsPackage(assetsPackage)
-    , mPackageType(type)
-    , mTypeIdOffset(0)
-    , mNumLocal(0)
-    , mBundle(bundle)
-{
+ResourceTable::ResourceTable(Bundle *bundle, const String16 &assetsPackage,
+                             ResourceTable::PackageType type)
+        : mAssetsPackage(assetsPackage), mPackageType(type), mTypeIdOffset(0), mNumLocal(0),
+          mBundle(bundle) {
     ssize_t packageId = -1;
     switch (mPackageType) {
         case App:
@@ -1783,7 +1781,7 @@ ResourceTable::ResourceTable(Bundle* bundle, const String16& assetsPackage, Reso
     getType(mAssetsPackage, String16("attr"), unknown);
 }
 
-static uint32_t findLargestTypeIdForPackage(const ResTable& table, const String16& packageName) {
+static uint32_t findLargestTypeIdForPackage(const ResTable &table, const String16 &packageName) {
     const size_t basePackageCount = table.getBasePackageCount();
     for (size_t i = 0; i < basePackageCount; i++) {
         if (packageName == table.getBasePackageName(i)) {
@@ -1793,8 +1791,7 @@ static uint32_t findLargestTypeIdForPackage(const ResTable& table, const String1
     return 0;
 }
 
-status_t ResourceTable::addIncludedResources(Bundle* bundle, const sp<AaptAssets>& assets)
-{
+status_t ResourceTable::addIncludedResources(Bundle *bundle, const sp<AaptAssets> &assets) {
     status_t err = assets->buildIncludedResources(bundle);
     if (err != NO_ERROR) {
         return err;
@@ -1803,7 +1800,7 @@ status_t ResourceTable::addIncludedResources(Bundle* bundle, const sp<AaptAssets
     mAssets = assets;
     mTypeIdOffset = findLargestTypeIdForPackage(assets->getIncludedResources(), mAssetsPackage);
 
-    const String8& featureAfter = bundle->getFeatureAfterPackage();
+    const String8 &featureAfter = bundle->getFeatureAfterPackage();
     if (!featureAfter.isEmpty()) {
         AssetManager featureAssetManager;
         if (!featureAssetManager.addAssetPath(featureAfter, NULL)) {
@@ -1812,28 +1809,27 @@ status_t ResourceTable::addIncludedResources(Bundle* bundle, const sp<AaptAssets
             return UNKNOWN_ERROR;
         }
 
-        const ResTable& featureTable = featureAssetManager.getResources(false);
+        const ResTable &featureTable = featureAssetManager.getResources(false);
         mTypeIdOffset = std::max(mTypeIdOffset,
-                findLargestTypeIdForPackage(featureTable, mAssetsPackage)); 
+                                 findLargestTypeIdForPackage(featureTable, mAssetsPackage));
     }
 
     return NO_ERROR;
 }
 
-status_t ResourceTable::addPublic(const SourcePos& sourcePos,
-                                  const String16& package,
-                                  const String16& type,
-                                  const String16& name,
-                                  const uint32_t ident)
-{
+status_t ResourceTable::addPublic(const SourcePos &sourcePos,
+                                  const String16 &package,
+                                  const String16 &type,
+                                  const String16 &name,
+                                  const uint32_t ident) {
     uint32_t rid = mAssets->getIncludedResources()
-        .identifierForName(name.string(), name.size(),
-                           type.string(), type.size(),
-                           package.string(), package.size());
+            .identifierForName(name.string(), name.size(),
+                               type.string(), type.size(),
+                               package.string(), package.size());
     if (rid != 0) {
         sourcePos.error("Error declaring public resource %s/%s for included package %s\n",
-                String8(type).string(), String8(name).string(),
-                String8(package).string());
+                        String8(type).string(), String8(name).string(),
+                        String8(package).string());
         return UNKNOWN_ERROR;
     }
 
@@ -1844,27 +1840,26 @@ status_t ResourceTable::addPublic(const SourcePos& sourcePos,
     return t->addPublic(sourcePos, name, ident);
 }
 
-status_t ResourceTable::addEntry(const SourcePos& sourcePos,
-                                 const String16& package,
-                                 const String16& type,
-                                 const String16& name,
-                                 const String16& value,
-                                 const Vector<StringPool::entry_style_span>* style,
-                                 const ResTable_config* params,
+status_t ResourceTable::addEntry(const SourcePos &sourcePos,
+                                 const String16 &package,
+                                 const String16 &type,
+                                 const String16 &name,
+                                 const String16 &value,
+                                 const Vector<StringPool::entry_style_span> *style,
+                                 const ResTable_config *params,
                                  const bool doSetIndex,
                                  const int32_t format,
-                                 const bool overwrite)
-{
+                                 const bool overwrite) {
     uint32_t rid = mAssets->getIncludedResources()
-        .identifierForName(name.string(), name.size(),
-                           type.string(), type.size(),
-                           package.string(), package.size());
+            .identifierForName(name.string(), name.size(),
+                               type.string(), type.size(),
+                               package.string(), package.size());
     if (rid != 0) {
         sourcePos.error("Resource entry %s/%s is already defined in package %s.",
-                String8(type).string(), String8(name).string(), String8(package).string());
+                        String8(type).string(), String8(name).string(), String8(package).string());
         return UNKNOWN_ERROR;
     }
-    
+
     sp<Entry> e = getEntry(package, type, name, sourcePos, overwrite,
                            params, doSetIndex);
     if (e == NULL) {
@@ -1877,26 +1872,25 @@ status_t ResourceTable::addEntry(const SourcePos& sourcePos,
     return err;
 }
 
-status_t ResourceTable::startBag(const SourcePos& sourcePos,
-                                 const String16& package,
-                                 const String16& type,
-                                 const String16& name,
-                                 const String16& bagParent,
-                                 const ResTable_config* params,
+status_t ResourceTable::startBag(const SourcePos &sourcePos,
+                                 const String16 &package,
+                                 const String16 &type,
+                                 const String16 &name,
+                                 const String16 &bagParent,
+                                 const ResTable_config *params,
                                  bool overlay,
-                                 bool replace, bool /* isId */)
-{
+                                 bool replace, bool /* isId */) {
     status_t result = NO_ERROR;
 
     // Check for adding entries in other packages...  for now we do
     // nothing.  We need to do the right thing here to support skinning.
     uint32_t rid = mAssets->getIncludedResources()
-    .identifierForName(name.string(), name.size(),
-                       type.string(), type.size(),
-                       package.string(), package.size());
+            .identifierForName(name.string(), name.size(),
+                               type.string(), type.size(),
+                               package.string(), package.size());
     if (rid != 0) {
         sourcePos.error("Resource entry %s/%s is already defined in package %s.",
-                String8(type).string(), String8(name).string(), String8(package).string());
+                        String8(type).string(), String8(name).string(), String8(package).string());
         return UNKNOWN_ERROR;
     }
 
@@ -1912,8 +1906,9 @@ status_t ResourceTable::startBag(const SourcePos& sourcePos,
             }
         }
         if (!canAdd) {
-            sourcePos.error("Resource does not already exist in overlay at '%s'; use <add-resource> to add.\n",
-                            String8(name).string());
+            sourcePos.error(
+                    "Resource does not already exist in overlay at '%s'; use <add-resource> to add.\n",
+                    String8(name).string());
             return UNKNOWN_ERROR;
         }
     }
@@ -1921,7 +1916,7 @@ status_t ResourceTable::startBag(const SourcePos& sourcePos,
     if (e == NULL) {
         return UNKNOWN_ERROR;
     }
-    
+
     // If a parent is explicitly specified, set it.
     if (bagParent.size() > 0) {
         e->setParent(bagParent);
@@ -1931,29 +1926,28 @@ status_t ResourceTable::startBag(const SourcePos& sourcePos,
         return result;
     }
 
-    if (overlay && replace) { 
+    if (overlay && replace) {
         return e->emptyBag(sourcePos);
     }
     return result;
 }
 
-status_t ResourceTable::addBag(const SourcePos& sourcePos,
-                               const String16& package,
-                               const String16& type,
-                               const String16& name,
-                               const String16& bagParent,
-                               const String16& bagKey,
-                               const String16& value,
-                               const Vector<StringPool::entry_style_span>* style,
-                               const ResTable_config* params,
-                               bool replace, bool isId, const int32_t format)
-{
+status_t ResourceTable::addBag(const SourcePos &sourcePos,
+                               const String16 &package,
+                               const String16 &type,
+                               const String16 &name,
+                               const String16 &bagParent,
+                               const String16 &bagKey,
+                               const String16 &value,
+                               const Vector<StringPool::entry_style_span> *style,
+                               const ResTable_config *params,
+                               bool replace, bool isId, const int32_t format) {
     // Check for adding entries in other packages...  for now we do
     // nothing.  We need to do the right thing here to support skinning.
     uint32_t rid = mAssets->getIncludedResources()
-        .identifierForName(name.string(), name.size(),
-                           type.string(), type.size(),
-                           package.string(), package.size());
+            .identifierForName(name.string(), name.size(),
+                               type.string(), type.size(),
+                               package.string(), package.size());
     if (rid != 0) {
         return NO_ERROR;
     }
@@ -1982,15 +1976,14 @@ status_t ResourceTable::addBag(const SourcePos& sourcePos,
     return err;
 }
 
-bool ResourceTable::hasBagOrEntry(const String16& package,
-                                  const String16& type,
-                                  const String16& name) const
-{
+bool ResourceTable::hasBagOrEntry(const String16 &package,
+                                  const String16 &type,
+                                  const String16 &name) const {
     // First look for this in the included resources...
     uint32_t rid = mAssets->getIncludedResources()
-        .identifierForName(name.string(), name.size(),
-                           type.string(), type.size(),
-                           package.string(), package.size());
+            .identifierForName(name.string(), name.size(),
+                               type.string(), type.size(),
+                               package.string(), package.size());
     if (rid != 0) {
         return true;
     }
@@ -1999,7 +1992,7 @@ bool ResourceTable::hasBagOrEntry(const String16& package,
     if (p != NULL) {
         sp<Type> t = p->getTypes().valueFor(type);
         if (t != NULL) {
-            sp<ConfigList> c =  t->getConfigs().valueFor(name);
+            sp<ConfigList> c = t->getConfigs().valueFor(name);
             if (c != NULL) return true;
         }
     }
@@ -2007,16 +2000,15 @@ bool ResourceTable::hasBagOrEntry(const String16& package,
     return false;
 }
 
-bool ResourceTable::hasBagOrEntry(const String16& package,
-                                  const String16& type,
-                                  const String16& name,
-                                  const ResTable_config& config) const
-{
+bool ResourceTable::hasBagOrEntry(const String16 &package,
+                                  const String16 &type,
+                                  const String16 &name,
+                                  const ResTable_config &config) const {
     // First look for this in the included resources...
     uint32_t rid = mAssets->getIncludedResources()
-        .identifierForName(name.string(), name.size(),
-                           type.string(), type.size(),
-                           package.string(), package.size());
+            .identifierForName(name.string(), name.size(),
+                               type.string(), type.size(),
+                               package.string(), package.size());
     if (rid != 0) {
         return true;
     }
@@ -2025,7 +2017,7 @@ bool ResourceTable::hasBagOrEntry(const String16& package,
     if (p != NULL) {
         sp<Type> t = p->getTypes().valueFor(type);
         if (t != NULL) {
-            sp<ConfigList> c =  t->getConfigs().valueFor(name);
+            sp<ConfigList> c = t->getConfigs().valueFor(name);
             if (c != NULL) {
                 sp<Entry> e = c->getEntries().valueFor(config);
                 if (e != NULL) {
@@ -2038,24 +2030,22 @@ bool ResourceTable::hasBagOrEntry(const String16& package,
     return false;
 }
 
-bool ResourceTable::hasBagOrEntry(const String16& ref,
-                                  const String16* defType,
-                                  const String16* defPackage)
-{
+bool ResourceTable::hasBagOrEntry(const String16 &ref,
+                                  const String16 *defType,
+                                  const String16 *defPackage) {
     String16 package, type, name;
     if (!ResTable::expandResourceRef(ref.string(), ref.size(), &package, &type, &name,
-                defType, defPackage ? defPackage:&mAssetsPackage, NULL)) {
+                                     defType, defPackage ? defPackage : &mAssetsPackage, NULL)) {
         return false;
     }
     return hasBagOrEntry(package, type, name);
 }
 
-bool ResourceTable::appendComment(const String16& package,
-                                  const String16& type,
-                                  const String16& name,
-                                  const String16& comment,
-                                  bool onlyIfEmpty)
-{
+bool ResourceTable::appendComment(const String16 &package,
+                                  const String16 &type,
+                                  const String16 &name,
+                                  const String16 &comment,
+                                  bool onlyIfEmpty) {
     if (comment.size() <= 0) {
         return true;
     }
@@ -2064,7 +2054,7 @@ bool ResourceTable::appendComment(const String16& package,
     if (p != NULL) {
         sp<Type> t = p->getTypes().valueFor(type);
         if (t != NULL) {
-            sp<ConfigList> c =  t->getConfigs().valueFor(name);
+            sp<ConfigList> c = t->getConfigs().valueFor(name);
             if (c != NULL) {
                 c->appendComment(comment, onlyIfEmpty);
                 return true;
@@ -2074,20 +2064,19 @@ bool ResourceTable::appendComment(const String16& package,
     return false;
 }
 
-bool ResourceTable::appendTypeComment(const String16& package,
-                                      const String16& type,
-                                      const String16& name,
-                                      const String16& comment)
-{
+bool ResourceTable::appendTypeComment(const String16 &package,
+                                      const String16 &type,
+                                      const String16 &name,
+                                      const String16 &comment) {
     if (comment.size() <= 0) {
         return true;
     }
-    
+
     sp<Package> p = mPackages.valueFor(package);
     if (p != NULL) {
         sp<Type> t = p->getTypes().valueFor(type);
         if (t != NULL) {
-            sp<ConfigList> c =  t->getConfigs().valueFor(name);
+            sp<ConfigList> c = t->getConfigs().valueFor(name);
             if (c != NULL) {
                 c->appendTypeComment(comment);
                 return true;
@@ -2097,11 +2086,11 @@ bool ResourceTable::appendTypeComment(const String16& package,
     return false;
 }
 
-bool ResourceTable::makeAttribute(const String16& package,
-                                  const String16& name,
-                                  const SourcePos& source,
+bool ResourceTable::makeAttribute(const String16 &package,
+                                  const String16 &name,
+                                  const SourcePos &source,
                                   int32_t format,
-                                  const String16& comment,
+                                  const String16 &comment,
                                   bool shouldAppendComment) {
     const String16 attr16("attr");
 
@@ -2133,11 +2122,11 @@ bool ResourceTable::makeAttribute(const String16& package,
         // We have already set a format for this attribute, check if they are different.
         // We allow duplicate attribute definitions so long as they are identical.
         // This is to ensure inter-operation with libraries that define the same generic attribute.
-        const Item& formatItem = entry->getBag().valueAt(idx);
+        const Item &formatItem = entry->getBag().valueAt(idx);
         if ((format & (ResTable_map::TYPE_ENUM | ResTable_map::TYPE_FLAGS)) ||
-                formatItem.value != formatValue16) {
+            formatItem.value != formatValue16) {
             source.error("Attribute \"%s\" already defined with incompatible format.\n"
-                         "%s:%d: Original attribute defined here.",
+                                 "%s:%d: Original attribute defined here.",
                          String8(name).string(), formatItem.sourcePos.file.string(),
                          formatItem.sourcePos.line);
             return false;
@@ -2152,9 +2141,9 @@ bool ResourceTable::makeAttribute(const String16& package,
     return true;
 }
 
-void ResourceTable::canAddEntry(const SourcePos& pos,
-        const String16& package, const String16& type, const String16& name)
-{
+void ResourceTable::canAddEntry(const SourcePos &pos,
+                                const String16 &package, const String16 &type,
+                                const String16 &name) {
     sp<Type> t = getType(package, type, pos);
     if (t != NULL) {
         t->canAddEntry(name);
@@ -2173,43 +2162,40 @@ bool ResourceTable::hasResources() const {
     return mNumLocal > 0;
 }
 
-sp<AaptFile> ResourceTable::flatten(Bundle* bundle, const sp<const ResourceFilter>& filter,
-        const bool isBase)
-{
+sp<AaptFile> ResourceTable::flatten(Bundle *bundle, const sp<const ResourceFilter> &filter,
+                                    const bool isBase) {
     sp<AaptFile> data = new AaptFile(String8(), AaptGroupEntry(), String8());
     status_t err = flatten(bundle, filter, data, isBase);
     return err == NO_ERROR ? data : NULL;
 }
 
-inline uint32_t ResourceTable::getResId(const sp<Package>& p,
-                                        const sp<Type>& t,
-                                        uint32_t nameId)
-{
+inline uint32_t ResourceTable::getResId(const sp<Package> &p,
+                                        const sp<Type> &t,
+                                        uint32_t nameId) {
     return makeResId(p->getAssignedId(), t->getIndex(), nameId);
 }
 
-uint32_t ResourceTable::getResId(const String16& package,
-                                 const String16& type,
-                                 const String16& name,
-                                 bool onlyPublic) const
-{
+uint32_t ResourceTable::getResId(const String16 &package,
+                                 const String16 &type,
+                                 const String16 &name,
+                                 bool onlyPublic) const {
     uint32_t id = ResourceIdCache::lookup(package, type, name, onlyPublic);
     if (id != 0) return id;     // cache hit
 
     // First look for this in the included resources...
     uint32_t specFlags = 0;
     uint32_t rid = mAssets->getIncludedResources()
-        .identifierForName(name.string(), name.size(),
-                           type.string(), type.size(),
-                           package.string(), package.size(),
-                           &specFlags);
+            .identifierForName(name.string(), name.size(),
+                               type.string(), type.size(),
+                               package.string(), package.size(),
+                               &specFlags);
     if (rid != 0) {
         if (onlyPublic) {
             if ((specFlags & ResTable_typeSpec::SPEC_PUBLIC) == 0) {
                 return 0;
             }
         }
-        
+
         return ResourceIdCache::store(package, type, name, onlyPublic, rid);
     }
 
@@ -2231,39 +2217,38 @@ uint32_t ResourceTable::getResId(const String16& package,
     if (ei < 0) return 0;
 
     return ResourceIdCache::store(package, type, name, onlyPublic,
-            getResId(p, t, ei));
+                                  getResId(p, t, ei));
 }
 
-uint32_t ResourceTable::getResId(const String16& ref,
-                                 const String16* defType,
-                                 const String16* defPackage,
-                                 const char** outErrorMsg,
-                                 bool onlyPublic) const
-{
+uint32_t ResourceTable::getResId(const String16 &ref,
+                                 const String16 *defType,
+                                 const String16 *defPackage,
+                                 const char **outErrorMsg,
+                                 bool onlyPublic) const {
     String16 package, type, name;
     bool refOnlyPublic = true;
     if (!ResTable::expandResourceRef(
-        ref.string(), ref.size(), &package, &type, &name,
-        defType, defPackage ? defPackage:&mAssetsPackage,
-        outErrorMsg, &refOnlyPublic)) {
+            ref.string(), ref.size(), &package, &type, &name,
+            defType, defPackage ? defPackage : &mAssetsPackage,
+            outErrorMsg, &refOnlyPublic)) {
         if (kIsDebug) {
             printf("Expanding resource: ref=%s\n", String8(ref).string());
             printf("Expanding resource: defType=%s\n",
-                    defType ? String8(*defType).string() : "NULL");
+                   defType ? String8(*defType).string() : "NULL");
             printf("Expanding resource: defPackage=%s\n",
-                    defPackage ? String8(*defPackage).string() : "NULL");
+                   defPackage ? String8(*defPackage).string() : "NULL");
             printf("Expanding resource: ref=%s\n", String8(ref).string());
             printf("Expanded resource: p=%s, t=%s, n=%s, res=0\n",
-                    String8(package).string(), String8(type).string(),
-                    String8(name).string());
+                   String8(package).string(), String8(type).string(),
+                   String8(name).string());
         }
         return 0;
     }
     uint32_t res = getResId(package, type, name, onlyPublic && refOnlyPublic);
     if (kIsDebug) {
         printf("Expanded resource: p=%s, t=%s, n=%s, res=%d\n",
-                String8(package).string(), String8(type).string(),
-                String8(name).string(), res);
+               String8(package).string(), String8(type).string(),
+               String8(name).string(), res);
     }
     if (res == 0) {
         if (outErrorMsg)
@@ -2272,9 +2257,8 @@ uint32_t ResourceTable::getResId(const String16& ref,
     return res;
 }
 
-bool ResourceTable::isValidResourceName(const String16& s)
-{
-    const char16_t* p = s.string();
+bool ResourceTable::isValidResourceName(const String16 &s) {
+    const char16_t *p = s.string();
     bool first = true;
     while (*p) {
         if ((*p >= 'a' && *p <= 'z')
@@ -2290,24 +2274,23 @@ bool ResourceTable::isValidResourceName(const String16& s)
     return true;
 }
 
-bool ResourceTable::stringToValue(Res_value* outValue, StringPool* pool,
-                                  const String16& str,
+bool ResourceTable::stringToValue(Res_value *outValue, StringPool *pool,
+                                  const String16 &str,
                                   bool preserveSpaces, bool coerceType,
                                   uint32_t attrID,
-                                  const Vector<StringPool::entry_style_span>* style,
-                                  String16* outStr, void* accessorCookie,
-                                  uint32_t attrType, const String8* configTypeName,
-                                  const ConfigDescription* config)
-{
+                                  const Vector<StringPool::entry_style_span> *style,
+                                  String16 *outStr, void *accessorCookie,
+                                  uint32_t attrType, const String8 *configTypeName,
+                                  const ConfigDescription *config) {
     String16 finalStr;
 
     bool res = true;
     if (style == NULL || style->size() == 0) {
         // Text is not styled so it can be any type...  let's figure it out.
         res = mAssets->getIncludedResources()
-            .stringToValue(outValue, &finalStr, str.string(), str.size(), preserveSpaces,
-                            coerceType, attrID, NULL, &mAssetsPackage, this,
-                           accessorCookie, attrType);
+                .stringToValue(outValue, &finalStr, str.string(), str.size(), preserveSpaces,
+                               coerceType, attrID, NULL, &mAssetsPackage, this,
+                               accessorCookie, attrType);
     } else {
         // Styled text can only be a string, and while collecting the style
         // information we have already processed that string!
@@ -2333,8 +2316,8 @@ bool ResourceTable::stringToValue(Res_value* outValue, StringPool* pool,
             }
             if (kIsDebug) {
                 printf("Adding to pool string style #%zu config %s: %s\n",
-                        style != NULL ? style->size() : 0U,
-                        configStr.string(), String8(finalStr).string());
+                       style != NULL ? style->size() : 0U,
+                       configStr.string(), String8(finalStr).string());
             }
             if (style != NULL && style->size() > 0) {
                 outValue->data = pool->add(finalStr, *style, configTypeName, config);
@@ -2345,7 +2328,7 @@ bool ResourceTable::stringToValue(Res_value* outValue, StringPool* pool,
             // Caller will fill this in later.
             outValue->data = 0;
         }
-    
+
         if (outStr) {
             *outStr = finalStr;
         }
@@ -2356,15 +2339,14 @@ bool ResourceTable::stringToValue(Res_value* outValue, StringPool* pool,
 }
 
 uint32_t ResourceTable::getCustomResource(
-    const String16& package, const String16& type, const String16& name) const
-{
+        const String16 &package, const String16 &type, const String16 &name) const {
     //printf("getCustomResource: %s %s %s\n", String8(package).string(),
     //       String8(type).string(), String8(name).string());
     sp<Package> p = mPackages.valueFor(package);
     if (p == NULL) return 0;
     sp<Type> t = p->getTypes().valueFor(type);
     if (t == NULL) return 0;
-    sp<ConfigList> c =  t->getConfigs().valueFor(name);
+    sp<ConfigList> c = t->getConfigs().valueFor(name);
     if (c == NULL) {
         if (type != String16("attr")) {
             return 0;
@@ -2380,9 +2362,8 @@ uint32_t ResourceTable::getCustomResource(
 }
 
 uint32_t ResourceTable::getCustomResourceWithCreation(
-        const String16& package, const String16& type, const String16& name,
-        const bool createIfNotFound)
-{
+        const String16 &package, const String16 &type, const String16 &name,
+        const bool createIfNotFound) {
     uint32_t resId = getCustomResource(package, type, name);
     if (resId != 0 || !createIfNotFound) {
         return resId;
@@ -2390,7 +2371,8 @@ uint32_t ResourceTable::getCustomResourceWithCreation(
 
     if (mAssetsPackage != package) {
         mCurrentXmlPos.error("creating resource for external package %s: %s/%s.",
-                String8(package).string(), String8(type).string(), String8(name).string());
+                             String8(package).string(), String8(type).string(),
+                             String8(name).string());
         if (package == String16("android")) {
             mCurrentXmlPos.printf("did you mean to use @+id instead of @+android:id?");
         }
@@ -2406,13 +2388,11 @@ uint32_t ResourceTable::getCustomResourceWithCreation(
     return 0;
 }
 
-uint32_t ResourceTable::getRemappedPackage(uint32_t origPackage) const
-{
+uint32_t ResourceTable::getRemappedPackage(uint32_t origPackage) const {
     return origPackage;
 }
 
-bool ResourceTable::getAttributeType(uint32_t attrID, uint32_t* outType)
-{
+bool ResourceTable::getAttributeType(uint32_t attrID, uint32_t *outType) {
     //printf("getAttributeType #%08x\n", attrID);
     Res_value value;
     if (getItemValue(attrID, ResTable_map::ATTR_TYPE, &value)) {
@@ -2424,8 +2404,7 @@ bool ResourceTable::getAttributeType(uint32_t attrID, uint32_t* outType)
     return false;
 }
 
-bool ResourceTable::getAttributeMin(uint32_t attrID, uint32_t* outMin)
-{
+bool ResourceTable::getAttributeMin(uint32_t attrID, uint32_t *outMin) {
     //printf("getAttributeMin #%08x\n", attrID);
     Res_value value;
     if (getItemValue(attrID, ResTable_map::ATTR_MIN, &value)) {
@@ -2435,8 +2414,7 @@ bool ResourceTable::getAttributeMin(uint32_t attrID, uint32_t* outMin)
     return false;
 }
 
-bool ResourceTable::getAttributeMax(uint32_t attrID, uint32_t* outMax)
-{
+bool ResourceTable::getAttributeMax(uint32_t attrID, uint32_t *outMax) {
     //printf("getAttributeMax #%08x\n", attrID);
     Res_value value;
     if (getItemValue(attrID, ResTable_map::ATTR_MAX, &value)) {
@@ -2446,8 +2424,7 @@ bool ResourceTable::getAttributeMax(uint32_t attrID, uint32_t* outMax)
     return false;
 }
 
-uint32_t ResourceTable::getAttributeL10N(uint32_t attrID)
-{
+uint32_t ResourceTable::getAttributeL10N(uint32_t attrID) {
     //printf("getAttributeL10N #%08x\n", attrID);
     Res_value value;
     if (getItemValue(attrID, ResTable_map::ATTR_L10N, &value)) {
@@ -2456,16 +2433,14 @@ uint32_t ResourceTable::getAttributeL10N(uint32_t attrID)
     return ResTable_map::L10N_NOT_REQUIRED;
 }
 
-bool ResourceTable::getLocalizationSetting()
-{
+bool ResourceTable::getLocalizationSetting() {
     return mBundle->getRequireLocalization();
 }
 
-void ResourceTable::reportError(void* accessorCookie, const char* fmt, ...)
-{
+void ResourceTable::reportError(void *accessorCookie, const char *fmt, ...) {
     if (accessorCookie != NULL && fmt != NULL) {
-        AccessorCookie* ac = (AccessorCookie*)accessorCookie;
-        int retval=0;
+        AccessorCookie *ac = (AccessorCookie *) accessorCookie;
+        int retval = 0;
         char buf[1024];
         va_list ap;
         va_start(ap, fmt);
@@ -2477,13 +2452,12 @@ void ResourceTable::reportError(void* accessorCookie, const char* fmt, ...)
 }
 
 bool ResourceTable::getAttributeKeys(
-    uint32_t attrID, Vector<String16>* outKeys)
-{
+        uint32_t attrID, Vector<String16> *outKeys) {
     sp<const Entry> e = getEntry(attrID);
     if (e != NULL) {
         const size_t N = e->getBag().size();
-        for (size_t i=0; i<N; i++) {
-            const String16& key = e->getBag().keyAt(i);
+        for (size_t i = 0; i < N; i++) {
+            const String16 &key = e->getBag().keyAt(i);
             if (key.size() > 0 && key.string()[0] != '^') {
                 outKeys->add(key);
             }
@@ -2494,15 +2468,14 @@ bool ResourceTable::getAttributeKeys(
 }
 
 bool ResourceTable::getAttributeEnum(
-    uint32_t attrID, const char16_t* name, size_t nameLen,
-    Res_value* outValue)
-{
+        uint32_t attrID, const char16_t *name, size_t nameLen,
+        Res_value *outValue) {
     //printf("getAttributeEnum #%08x %s\n", attrID, String8(name, nameLen).string());
     String16 nameStr(name, nameLen);
     sp<const Entry> e = getEntry(attrID);
     if (e != NULL) {
         const size_t N = e->getBag().size();
-        for (size_t i=0; i<N; i++) {
+        for (size_t i = 0; i < N; i++) {
             //printf("Comparing %s to %s\n", String8(name, nameLen).string(),
             //       String8(e->getBag().keyAt(i)).string());
             if (e->getBag().keyAt(i) == nameStr) {
@@ -2514,9 +2487,8 @@ bool ResourceTable::getAttributeEnum(
 }
 
 bool ResourceTable::getAttributeFlags(
-    uint32_t attrID, const char16_t* name, size_t nameLen,
-    Res_value* outValue)
-{
+        uint32_t attrID, const char16_t *name, size_t nameLen,
+        Res_value *outValue) {
     outValue->dataType = Res_value::TYPE_INT_HEX;
     outValue->data = 0;
 
@@ -2526,17 +2498,17 @@ bool ResourceTable::getAttributeFlags(
     if (e != NULL) {
         const size_t N = e->getBag().size();
 
-        const char16_t* end = name + nameLen;
-        const char16_t* pos = name;
+        const char16_t *end = name + nameLen;
+        const char16_t *pos = name;
         while (pos < end) {
-            const char16_t* start = pos;
+            const char16_t *start = pos;
             while (pos < end && *pos != '|') {
                 pos++;
             }
 
-            String16 nameStr(start, pos-start);
+            String16 nameStr(start, pos - start);
             size_t i;
-            for (i=0; i<N; i++) {
+            for (i = 0; i < N; i++) {
                 //printf("Comparing \"%s\" to \"%s\"\n", String8(nameStr).string(),
                 //       String8(e->getBag().keyAt(i)).string());
                 if (e->getBag().keyAt(i) == nameStr) {
@@ -2563,14 +2535,13 @@ bool ResourceTable::getAttributeFlags(
     return false;
 }
 
-status_t ResourceTable::assignResourceIds()
-{
+status_t ResourceTable::assignResourceIds() {
     const size_t N = mOrderedPackages.size();
     size_t pi;
     status_t firstError = NO_ERROR;
 
     // First generate all bag attributes and assign indices.
-    for (pi=0; pi<N; pi++) {
+    for (pi = 0; pi < N; pi++) {
         sp<Package> p = mOrderedPackages.itemAt(pi);
         if (p == NULL || p->getTypes().size() == 0) {
             // Empty, skip!
@@ -2590,19 +2561,19 @@ status_t ResourceTable::assignResourceIds()
         // Generate attributes...
         const size_t N = p->getOrderedTypes().size();
         size_t ti;
-        for (ti=0; ti<N; ti++) {
+        for (ti = 0; ti < N; ti++) {
             sp<Type> t = p->getOrderedTypes().itemAt(ti);
             if (t == NULL) {
                 continue;
             }
             const size_t N = t->getOrderedConfigs().size();
-            for (size_t ci=0; ci<N; ci++) {
+            for (size_t ci = 0; ci < N; ci++) {
                 sp<ConfigList> c = t->getOrderedConfigs().itemAt(ci);
                 if (c == NULL) {
                     continue;
                 }
                 const size_t N = c->getEntries().size();
-                for (size_t ei=0; ei<N; ei++) {
+                for (size_t ei = 0; ei < N; ei++) {
                     sp<Entry> e = c->getEntries().valueAt(ei);
                     if (e == NULL) {
                         continue;
@@ -2650,7 +2621,7 @@ status_t ResourceTable::assignResourceIds()
             LOG_ALWAYS_FATAL_IF(ti == 0 && attr != t,
                                 "First type is not attr!");
 
-            for (size_t ei=0; ei<N; ei++) {
+            for (size_t ei = 0; ei < N; ei++) {
                 sp<ConfigList> c = t->getOrderedConfigs().itemAt(ei);
                 if (c == NULL) {
                     continue;
@@ -2668,14 +2639,14 @@ status_t ResourceTable::assignResourceIds()
             }
 
             const size_t N = t->getOrderedConfigs().size();
-            for (size_t ci=0; ci<N; ci++) {
+            for (size_t ci = 0; ci < N; ci++) {
                 sp<ConfigList> c = t->getOrderedConfigs().itemAt(ci);
                 if (c == NULL) {
                     continue;
                 }
                 //printf("Ordered config #%d: %p\n", ci, c.get());
                 const size_t N = c->getEntries().size();
-                for (size_t ei=0; ei<N; ei++) {
+                for (size_t ei = 0; ei < N; ei++) {
                     sp<Entry> e = c->getEntries().valueAt(ei);
                     if (e == NULL) {
                         continue;
@@ -2691,14 +2662,14 @@ status_t ResourceTable::assignResourceIds()
     return firstError;
 }
 
-status_t ResourceTable::addSymbols(const sp<AaptSymbols>& outSymbols,
-        bool skipSymbolsWithoutDefaultLocalization) {
+status_t ResourceTable::addSymbols(const sp<AaptSymbols> &outSymbols,
+                                   bool skipSymbolsWithoutDefaultLocalization) {
     const size_t N = mOrderedPackages.size();
     const String8 defaultLocale;
     const String16 stringType("string");
     size_t pi;
 
-    for (pi=0; pi<N; pi++) {
+    for (pi = 0; pi < N; pi++) {
         sp<Package> p = mOrderedPackages.itemAt(pi);
         if (p->getTypes().size() == 0) {
             // Empty, skip!
@@ -2708,7 +2679,7 @@ status_t ResourceTable::addSymbols(const sp<AaptSymbols>& outSymbols,
         const size_t N = p->getOrderedTypes().size();
         size_t ti;
 
-        for (ti=0; ti<N; ti++) {
+        for (ti = 0; ti < N; ti++) {
             sp<Type> t = p->getOrderedTypes().itemAt(ti);
             if (t == NULL) {
                 continue;
@@ -2726,7 +2697,7 @@ status_t ResourceTable::addSymbols(const sp<AaptSymbols>& outSymbols,
                 return UNKNOWN_ERROR;
             }
 
-            for (size_t ci=0; ci<N; ci++) {
+            for (size_t ci = 0; ci < N; ci++) {
                 sp<ConfigList> c = t->getOrderedConfigs().itemAt(ci);
                 if (c == NULL) {
                     continue;
@@ -2738,11 +2709,11 @@ status_t ResourceTable::addSymbols(const sp<AaptSymbols>& outSymbols,
                 if (Res_GETPACKAGE(rid) + 1 == p->getAssignedId()) {
 
                     if (skipSymbolsWithoutDefaultLocalization &&
-                            t->getName() == stringType) {
+                        t->getName() == stringType) {
 
                         // Don't generate symbols for strings without a default localization.
                         if (mHasDefaultLocalization.find(c->getName())
-                                == mHasDefaultLocalization.end()) {
+                            == mHasDefaultLocalization.end()) {
                             // printf("Skip symbol [%08x] %s\n", rid,
                             //          String8(c->getName()).string());
                             continue;
@@ -2750,7 +2721,7 @@ status_t ResourceTable::addSymbols(const sp<AaptSymbols>& outSymbols,
                     }
 
                     typeSymbols->addSymbol(String8(c->getName()), rid, c->getPos());
-                    
+
                     String16 comment(c->getComment());
                     typeSymbols->appendComment(String8(c->getName()), comment, c->getPos());
                     //printf("Type symbol [%08x] %s comment: %s\n", rid,
@@ -2766,14 +2737,12 @@ status_t ResourceTable::addSymbols(const sp<AaptSymbols>& outSymbols,
 
 
 void
-ResourceTable::addLocalization(const String16& name, const String8& locale, const SourcePos& src)
-{
+ResourceTable::addLocalization(const String16 &name, const String8 &locale, const SourcePos &src) {
     mLocalizations[name][locale] = src;
 }
 
 void
-ResourceTable::addDefaultLocalization(const String16& name)
-{
+ResourceTable::addDefaultLocalization(const String16 &name) {
     mHasDefaultLocalization.insert(name);
 }
 
@@ -2788,21 +2757,20 @@ ResourceTable::addDefaultLocalization(const String16& name)
  * - A localized string not provided in every locale used by the table
  */
 status_t
-ResourceTable::validateLocalizations(void)
-{
+ResourceTable::validateLocalizations(void) {
     status_t err = NO_ERROR;
     const String8 defaultLocale;
 
     // For all strings...
-    for (const auto& nameIter : mLocalizations) {
-        const std::map<String8, SourcePos>& configSrcMap = nameIter.second;
+    for (const auto &nameIter : mLocalizations) {
+        const std::map<String8, SourcePos> &configSrcMap = nameIter.second;
 
         // Look for strings with no default localization
         if (configSrcMap.count(defaultLocale) == 0) {
             SourcePos().warning("string '%s' has no default translation.",
-                    String8(nameIter.first).string());
+                                String8(nameIter.first).string());
             if (mBundle->getVerbose()) {
-                for (const auto& locale : configSrcMap) {
+                for (const auto &locale : configSrcMap) {
                     locale.second.printf("locale %s found", locale.first.string());
                 }
             }
@@ -2811,9 +2779,9 @@ ResourceTable::validateLocalizations(void)
 
         // Check that all requested localizations are present for this string
         if (mBundle->getConfigurations().size() > 0 && mBundle->getRequireLocalization()) {
-            const char* allConfigs = mBundle->getConfigurations().string();
-            const char* start = allConfigs;
-            const char* comma;
+            const char *allConfigs = mBundle->getConfigurations().string();
+            const char *start = allConfigs;
+            const char *comma;
 
             std::set<String8> missingConfigs;
             AaptLocaleValue locale;
@@ -2840,7 +2808,7 @@ ResourceTable::validateLocalizations(void)
                         // consider that string to have fulfilled the localization requirement.
                         String8 region(config.string(), 2);
                         if (configSrcMap.find(region) == configSrcMap.end() &&
-                                configSrcMap.count(defaultLocale) == 0) {
+                            configSrcMap.count(defaultLocale) == 0) {
                             missingConfigs.insert(config);
                         }
                     }
@@ -2849,13 +2817,13 @@ ResourceTable::validateLocalizations(void)
 
             if (!missingConfigs.empty()) {
                 String8 configStr;
-                for (const auto& iter : missingConfigs) {
+                for (const auto &iter : missingConfigs) {
                     configStr.appendFormat(" %s", iter.string());
                 }
                 SourcePos().warning("string '%s' is missing %u required localizations:%s",
-                        String8(nameIter.first).string(),
-                        (unsigned int)missingConfigs.size(),
-                        configStr.string());
+                                    String8(nameIter.first).string(),
+                                    (unsigned int) missingConfigs.size(),
+                                    configStr.string());
             }
         }
     }
@@ -2863,10 +2831,9 @@ ResourceTable::validateLocalizations(void)
     return err;
 }
 
-status_t ResourceTable::flatten(Bundle* bundle, const sp<const ResourceFilter>& filter,
-        const sp<AaptFile>& dest,
-        const bool isBase)
-{
+status_t ResourceTable::flatten(Bundle *bundle, const sp<const ResourceFilter> &filter,
+                                const sp<AaptFile> &dest,
+                                const bool isBase) {
     const ConfigDescription nullConfig;
 
     const size_t N = mOrderedPackages.size();
@@ -2878,13 +2845,13 @@ status_t ResourceTable::flatten(Bundle* bundle, const sp<const ResourceFilter>& 
 
     // The libraries this table references.
     Vector<sp<Package> > libraryPackages;
-    const ResTable& table = mAssets->getIncludedResources();
+    const ResTable &table = mAssets->getIncludedResources();
     const size_t basePackageCount = table.getBasePackageCount();
     for (size_t i = 0; i < basePackageCount; i++) {
         size_t packageId = table.getBasePackageId(i);
         String16 packageName(table.getBasePackageName(i));
         if (packageId > 0x01 && packageId != 0x7f &&
-                packageName != String16("android")) {
+            packageName != String16("android")) {
             libraryPackages.add(sp<Package>(new Package(packageName, packageId)));
         }
     }
@@ -2893,7 +2860,7 @@ status_t ResourceTable::flatten(Bundle* bundle, const sp<const ResourceFilter>& 
     // references, etc).
     StringPool valueStrings(useUTF8);
     Vector<sp<Entry> > allEntries;
-    for (pi=0; pi<N; pi++) {
+    for (pi = 0; pi < N; pi++) {
         sp<Package> p = mOrderedPackages.itemAt(pi);
         if (p->getTypes().size() == 0) {
             continue;
@@ -2904,7 +2871,7 @@ status_t ResourceTable::flatten(Bundle* bundle, const sp<const ResourceFilter>& 
 
         ssize_t stringsAdded = 0;
         const size_t N = p->getOrderedTypes().size();
-        for (size_t ti=0; ti<N; ti++) {
+        for (size_t ti = 0; ti < N; ti++) {
             sp<Type> t = p->getOrderedTypes().itemAt(ti);
             if (t == NULL) {
                 typeStrings.add(String16("<empty>"), false);
@@ -2925,10 +2892,10 @@ status_t ResourceTable::flatten(Bundle* bundle, const sp<const ResourceFilter>& 
             // to put stuff that is generally not language-specific first.
             String8 configTypeName(typeName);
             if (configTypeName == "drawable" || configTypeName == "layout"
-                    || configTypeName == "color" || configTypeName == "anim"
-                    || configTypeName == "interpolator" || configTypeName == "animator"
-                    || configTypeName == "xml" || configTypeName == "menu"
-                    || configTypeName == "mipmap" || configTypeName == "raw") {
+                || configTypeName == "color" || configTypeName == "anim"
+                || configTypeName == "interpolator" || configTypeName == "animator"
+                || configTypeName == "xml" || configTypeName == "menu"
+                || configTypeName == "mipmap" || configTypeName == "raw") {
                 configTypeName = "1complex";
             } else {
                 configTypeName = "2value";
@@ -2944,13 +2911,13 @@ status_t ResourceTable::flatten(Bundle* bundle, const sp<const ResourceFilter>& 
             const bool filterable = (typeName != mipmap16);
 
             const size_t N = t->getOrderedConfigs().size();
-            for (size_t ci=0; ci<N; ci++) {
+            for (size_t ci = 0; ci < N; ci++) {
                 sp<ConfigList> c = t->getOrderedConfigs().itemAt(ci);
                 if (c == NULL) {
                     continue;
                 }
                 const size_t N = c->getEntries().size();
-                for (size_t ei=0; ei<N; ei++) {
+                for (size_t ei = 0; ei < N; ei++) {
                     ConfigDescription config = c->getEntries().keyAt(ei);
                     if (filterable && !filter->match(config)) {
                         continue;
@@ -2964,13 +2931,13 @@ status_t ResourceTable::flatten(Bundle* bundle, const sp<const ResourceFilter>& 
                     // If this entry has no values for other configs,
                     // and is the default config, then it is special.  Otherwise
                     // we want to add it with the config info.
-                    ConfigDescription* valueConfig = NULL;
+                    ConfigDescription *valueConfig = NULL;
                     if (N != 1 || config == nullConfig) {
                         valueConfig = &config;
                     }
 
                     status_t err = e->prepareFlatten(&valueStrings, this,
-                            &configTypeName, &config);
+                                                     &configTypeName, &config);
                     if (err != NO_ERROR) {
                         return err;
                     }
@@ -2989,7 +2956,7 @@ status_t ResourceTable::flatten(Bundle* bundle, const sp<const ResourceFilter>& 
         // through out resource entries and update them accordingly.  Only need
         // to do this if actually writing the output file.
         valueStrings.sortByConfig();
-        for (pi=0; pi<allEntries.size(); pi++) {
+        for (pi = 0; pi < allEntries.size(); pi++) {
             allEntries[pi]->remapStringValue(&valueStrings);
         }
     }
@@ -2998,7 +2965,7 @@ status_t ResourceTable::flatten(Bundle* bundle, const sp<const ResourceFilter>& 
 
     // Now build the array of package chunks.
     Vector<sp<AaptFile> > flatPackages;
-    for (pi=0; pi<N; pi++) {
+    for (pi = 0; pi < N; pi++) {
         sp<Package> p = mOrderedPackages.itemAt(pi);
         if (p->getTypes().size() == 0) {
             // Empty, skip!
@@ -3011,7 +2978,7 @@ status_t ResourceTable::flatten(Bundle* bundle, const sp<const ResourceFilter>& 
 
         // Start the package data.
         sp<AaptFile> data = new AaptFile(String8(), AaptGroupEntry(), String8());
-        ResTable_package* header = (ResTable_package*)data->editData(baseSize);
+        ResTable_package *header = (ResTable_package *) data->editData(baseSize);
         if (header == NULL) {
             fprintf(stderr, "ERROR: out of memory creating ResTable_package\n");
             return NO_MEMORY;
@@ -3053,7 +3020,7 @@ status_t ResourceTable::flatten(Bundle* bundle, const sp<const ResourceFilter>& 
         }
 
         // Build the type chunks inside of this package.
-        for (size_t ti=0; ti<N; ti++) {
+        for (size_t ti = 0; ti < N; ti++) {
             // Retrieve them in the same order as the type string block.
             size_t len;
             String16 typeName(p->getTypeStrings().stringAt(ti, &len));
@@ -3074,14 +3041,15 @@ status_t ResourceTable::flatten(Bundle* bundle, const sp<const ResourceFilter>& 
             // the item at t->getOrderedConfigs().itemAt(i).
             Vector<bool> validResources;
             validResources.insertAt(false, 0, N);
-            
+
             // First write the typeSpec chunk, containing information about
             // each resource entry in this type.
             {
-                const size_t typeSpecSize = sizeof(ResTable_typeSpec) + sizeof(uint32_t)*N;
+                const size_t typeSpecSize = sizeof(ResTable_typeSpec) + sizeof(uint32_t) * N;
                 const size_t typeSpecStart = data->getSize();
-                ResTable_typeSpec* tsHeader = (ResTable_typeSpec*)
-                    (((uint8_t*)data->editData(typeSpecStart+typeSpecSize)) + typeSpecStart);
+                ResTable_typeSpec *tsHeader = (ResTable_typeSpec *)
+                        (((uint8_t *) data->editData(typeSpecStart + typeSpecSize)) +
+                         typeSpecStart);
                 if (tsHeader == NULL) {
                     fprintf(stderr, "ERROR: out of memory creating ResTable_typeSpec\n");
                     return NO_MEMORY;
@@ -3090,15 +3058,15 @@ status_t ResourceTable::flatten(Bundle* bundle, const sp<const ResourceFilter>& 
                 tsHeader->header.type = htods(RES_TABLE_TYPE_SPEC_TYPE);
                 tsHeader->header.headerSize = htods(sizeof(*tsHeader));
                 tsHeader->header.size = htodl(typeSpecSize);
-                tsHeader->id = ti+1;
+                tsHeader->id = ti + 1;
                 tsHeader->entryCount = htodl(N);
-                
-                uint32_t* typeSpecFlags = (uint32_t*)
-                    (((uint8_t*)data->editData())
-                        + typeSpecStart + sizeof(ResTable_typeSpec));
-                memset(typeSpecFlags, 0, sizeof(uint32_t)*N);
 
-                for (size_t ei=0; ei<N; ei++) {
+                uint32_t *typeSpecFlags = (uint32_t *)
+                        (((uint8_t *) data->editData())
+                         + typeSpecStart + sizeof(ResTable_typeSpec));
+                memset(typeSpecFlags, 0, sizeof(uint32_t) * N);
+
+                for (size_t ei = 0; ei < N; ei++) {
                     sp<ConfigList> cl = t->getOrderedConfigs().itemAt(ei);
                     if (cl == NULL) {
                         continue;
@@ -3113,21 +3081,21 @@ status_t ResourceTable::flatten(Bundle* bundle, const sp<const ResourceFilter>& 
                     }
 
                     const size_t CN = cl->getEntries().size();
-                    for (size_t ci=0; ci<CN; ci++) {
+                    for (size_t ci = 0; ci < CN; ci++) {
                         if (filterable && !filter->match(cl->getEntries().keyAt(ci))) {
                             continue;
                         }
-                        for (size_t cj=ci+1; cj<CN; cj++) {
+                        for (size_t cj = ci + 1; cj < CN; cj++) {
                             if (filterable && !filter->match(cl->getEntries().keyAt(cj))) {
                                 continue;
                             }
                             typeSpecFlags[ei] |= htodl(
-                                cl->getEntries().keyAt(ci).diff(cl->getEntries().keyAt(cj)));
+                                    cl->getEntries().keyAt(ci).diff(cl->getEntries().keyAt(cj)));
                         }
                     }
                 }
             }
-            
+
             if (skipEntireType) {
                 continue;
             }
@@ -3138,46 +3106,46 @@ status_t ResourceTable::flatten(Bundle* bundle, const sp<const ResourceFilter>& 
             if (t != NULL) {
                 uniqueConfigs = t->getUniqueConfigs();
             }
-            
-            const size_t typeSize = sizeof(ResTable_type) + sizeof(uint32_t)*N;
-            
+
+            const size_t typeSize = sizeof(ResTable_type) + sizeof(uint32_t) * N;
+
             const size_t NC = uniqueConfigs.size();
-            for (size_t ci=0; ci<NC; ci++) {
-                const ConfigDescription& config = uniqueConfigs[ci];
+            for (size_t ci = 0; ci < NC; ci++) {
+                const ConfigDescription &config = uniqueConfigs[ci];
 
                 if (kIsDebug) {
                     printf("Writing config %zu config: imsi:%d/%d lang:%c%c cnt:%c%c "
-                        "orien:%d ui:%d touch:%d density:%d key:%d inp:%d nav:%d sz:%dx%d "
-                        "sw%ddp w%ddp h%ddp layout:%d\n",
-                        ti + 1,
-                        config.mcc, config.mnc,
-                        config.language[0] ? config.language[0] : '-',
-                        config.language[1] ? config.language[1] : '-',
-                        config.country[0] ? config.country[0] : '-',
-                        config.country[1] ? config.country[1] : '-',
-                        config.orientation,
-                        config.uiMode,
-                        config.touchscreen,
-                        config.density,
-                        config.keyboard,
-                        config.inputFlags,
-                        config.navigation,
-                        config.screenWidth,
-                        config.screenHeight,
-                        config.smallestScreenWidthDp,
-                        config.screenWidthDp,
-                        config.screenHeightDp,
-                        config.screenLayout);
+                                   "orien:%d ui:%d touch:%d density:%d key:%d inp:%d nav:%d sz:%dx%d "
+                                   "sw%ddp w%ddp h%ddp layout:%d\n",
+                           ti + 1,
+                           config.mcc, config.mnc,
+                           config.language[0] ? config.language[0] : '-',
+                           config.language[1] ? config.language[1] : '-',
+                           config.country[0] ? config.country[0] : '-',
+                           config.country[1] ? config.country[1] : '-',
+                           config.orientation,
+                           config.uiMode,
+                           config.touchscreen,
+                           config.density,
+                           config.keyboard,
+                           config.inputFlags,
+                           config.navigation,
+                           config.screenWidth,
+                           config.screenHeight,
+                           config.smallestScreenWidthDp,
+                           config.screenWidthDp,
+                           config.screenHeightDp,
+                           config.screenLayout);
                 }
-                      
+
                 if (filterable && !filter->match(config)) {
                     continue;
                 }
-                
+
                 const size_t typeStart = data->getSize();
 
-                ResTable_type* tHeader = (ResTable_type*)
-                    (((uint8_t*)data->editData(typeStart+typeSize)) + typeStart);
+                ResTable_type *tHeader = (ResTable_type *)
+                        (((uint8_t *) data->editData(typeStart + typeSize)) + typeStart);
                 if (tHeader == NULL) {
                     fprintf(stderr, "ERROR: out of memory creating ResTable_type\n");
                     return NO_MEMORY;
@@ -3186,38 +3154,38 @@ status_t ResourceTable::flatten(Bundle* bundle, const sp<const ResourceFilter>& 
                 memset(tHeader, 0, sizeof(*tHeader));
                 tHeader->header.type = htods(RES_TABLE_TYPE_TYPE);
                 tHeader->header.headerSize = htods(sizeof(*tHeader));
-                tHeader->id = ti+1;
+                tHeader->id = ti + 1;
                 tHeader->entryCount = htodl(N);
                 tHeader->entriesStart = htodl(typeSize);
                 tHeader->config = config;
                 if (kIsDebug) {
                     printf("Writing type %zu config: imsi:%d/%d lang:%c%c cnt:%c%c "
-                        "orien:%d ui:%d touch:%d density:%d key:%d inp:%d nav:%d sz:%dx%d "
-                        "sw%ddp w%ddp h%ddp layout:%d\n",
-                        ti + 1,
-                        tHeader->config.mcc, tHeader->config.mnc,
-                        tHeader->config.language[0] ? tHeader->config.language[0] : '-',
-                        tHeader->config.language[1] ? tHeader->config.language[1] : '-',
-                        tHeader->config.country[0] ? tHeader->config.country[0] : '-',
-                        tHeader->config.country[1] ? tHeader->config.country[1] : '-',
-                        tHeader->config.orientation,
-                        tHeader->config.uiMode,
-                        tHeader->config.touchscreen,
-                        tHeader->config.density,
-                        tHeader->config.keyboard,
-                        tHeader->config.inputFlags,
-                        tHeader->config.navigation,
-                        tHeader->config.screenWidth,
-                        tHeader->config.screenHeight,
-                        tHeader->config.smallestScreenWidthDp,
-                        tHeader->config.screenWidthDp,
-                        tHeader->config.screenHeightDp,
-                        tHeader->config.screenLayout);
+                                   "orien:%d ui:%d touch:%d density:%d key:%d inp:%d nav:%d sz:%dx%d "
+                                   "sw%ddp w%ddp h%ddp layout:%d\n",
+                           ti + 1,
+                           tHeader->config.mcc, tHeader->config.mnc,
+                           tHeader->config.language[0] ? tHeader->config.language[0] : '-',
+                           tHeader->config.language[1] ? tHeader->config.language[1] : '-',
+                           tHeader->config.country[0] ? tHeader->config.country[0] : '-',
+                           tHeader->config.country[1] ? tHeader->config.country[1] : '-',
+                           tHeader->config.orientation,
+                           tHeader->config.uiMode,
+                           tHeader->config.touchscreen,
+                           tHeader->config.density,
+                           tHeader->config.keyboard,
+                           tHeader->config.inputFlags,
+                           tHeader->config.navigation,
+                           tHeader->config.screenWidth,
+                           tHeader->config.screenHeight,
+                           tHeader->config.smallestScreenWidthDp,
+                           tHeader->config.screenWidthDp,
+                           tHeader->config.screenHeightDp,
+                           tHeader->config.screenLayout);
                 }
                 tHeader->config.swapHtoD();
 
                 // Build the entries inside of this type.
-                for (size_t ei=0; ei<N; ei++) {
+                for (size_t ei = 0; ei < N; ei++) {
                     sp<ConfigList> cl = t->getOrderedConfigs().itemAt(ei);
                     sp<Entry> e = NULL;
                     if (cl != NULL) {
@@ -3225,11 +3193,11 @@ status_t ResourceTable::flatten(Bundle* bundle, const sp<const ResourceFilter>& 
                     }
 
                     // Set the offset for this entry in its type.
-                    uint32_t* index = (uint32_t*)
-                        (((uint8_t*)data->editData())
-                            + typeStart + sizeof(ResTable_type));
+                    uint32_t *index = (uint32_t *)
+                            (((uint8_t *) data->editData())
+                             + typeStart + sizeof(ResTable_type));
                     if (e != NULL) {
-                        index[ei] = htodl(data->getSize()-typeStart-typeSize);
+                        index[ei] = htodl(data->getSize() - typeStart - typeSize);
 
                         // Create the entry.
                         ssize_t amt = e->flatten(bundle, data, cl->getPublic());
@@ -3243,22 +3211,23 @@ status_t ResourceTable::flatten(Bundle* bundle, const sp<const ResourceFilter>& 
                 }
 
                 // Fill in the rest of the type information.
-                tHeader = (ResTable_type*)
-                    (((uint8_t*)data->editData()) + typeStart);
-                tHeader->header.size = htodl(data->getSize()-typeStart);
+                tHeader = (ResTable_type *)
+                        (((uint8_t *) data->editData()) + typeStart);
+                tHeader->header.size = htodl(data->getSize() - typeStart);
             }
 
             // If we're building splits, then each invocation of the flattening
             // step will have 'missing' entries. Don't warn/error for this case.
             if (bundle->getSplitConfigurations().isEmpty()) {
                 bool missing_entry = false;
-                const char* log_prefix = bundle->getErrorOnMissingConfigEntry() ?
-                        "error" : "warning";
+                const char *log_prefix = bundle->getErrorOnMissingConfigEntry() ?
+                                         "error" : "warning";
                 for (size_t i = 0; i < N; ++i) {
                     if (!validResources[i]) {
                         sp<ConfigList> c = t->getOrderedConfigs().itemAt(i);
                         if (c != NULL) {
-                            fprintf(stderr, "%s: no entries written for %s/%s (0x%08zx)\n", log_prefix,
+                            fprintf(stderr, "%s: no entries written for %s/%s (0x%08zx)\n",
+                                    log_prefix,
                                     String8(typeName).string(), String8(c->getName()).string(),
                                     Res_MAKEID(p->getAssignedId() - 1, ti, i));
                         }
@@ -3273,7 +3242,7 @@ status_t ResourceTable::flatten(Bundle* bundle, const sp<const ResourceFilter>& 
         }
 
         // Fill in the rest of the package information.
-        header = (ResTable_package*)data->editData();
+        header = (ResTable_package *) data->editData();
         header->header.size = htodl(data->getSize());
         header->typeStrings = htodl(typeStringsStart);
         header->lastPublicType = htodl(p->getTypeStrings().size());
@@ -3299,21 +3268,21 @@ status_t ResourceTable::flatten(Bundle* bundle, const sp<const ResourceFilter>& 
             return err;
         }
     }
-    
+
     ssize_t strStart = dest->getSize();
     status_t err = valueStrings.writeStringBlock(dest);
     if (err != NO_ERROR) {
         return err;
     }
 
-    ssize_t amt = (dest->getSize()-strStart);
+    ssize_t amt = (dest->getSize() - strStart);
     strAmt += amt;
     if (kPrintStringMetrics) {
         fprintf(stderr, "**** value strings: %zd\n", SSIZE(amt));
         fprintf(stderr, "**** total strings: %zd\n", SSIZE(strAmt));
     }
 
-    for (pi=0; pi<flatPackages.size(); pi++) {
+    for (pi = 0; pi < flatPackages.size(); pi++) {
         err = dest->writeData(flatPackages[pi]->getData(),
                               flatPackages[pi]->getSize());
         if (err != NO_ERROR) {
@@ -3322,19 +3291,20 @@ status_t ResourceTable::flatten(Bundle* bundle, const sp<const ResourceFilter>& 
         }
     }
 
-    ResTable_header* header = (ResTable_header*)
-        (((uint8_t*)dest->getData()) + dataStart);
+    ResTable_header *header = (ResTable_header *)
+            (((uint8_t *) dest->getData()) + dataStart);
     header->header.size = htodl(dest->getSize() - dataStart);
 
     if (kPrintStringMetrics) {
         fprintf(stderr, "**** total resource table size: %zu / %zu%% strings\n",
-                dest->getSize(), (size_t)(strAmt*100)/dest->getSize());
+                dest->getSize(), (size_t) (strAmt * 100) / dest->getSize());
     }
-    
+
     return NO_ERROR;
 }
 
-status_t ResourceTable::flattenLibraryTable(const sp<AaptFile>& dest, const Vector<sp<Package> >& libs) {
+status_t
+ResourceTable::flattenLibraryTable(const sp<AaptFile> &dest, const Vector<sp<Package> > &libs) {
     // Write out the library table if necessary
     if (libs.size() > 0) {
         if (kIsDebug) {
@@ -3343,7 +3313,7 @@ status_t ResourceTable::flattenLibraryTable(const sp<AaptFile>& dest, const Vect
 
         const size_t libStart = dest->getSize();
         const size_t count = libs.size();
-        ResTable_lib_header* libHeader = (ResTable_lib_header*) dest->editDataInRange(
+        ResTable_lib_header *libHeader = (ResTable_lib_header *) dest->editDataInRange(
                 libStart, sizeof(ResTable_lib_header));
 
         memset(libHeader, 0, sizeof(*libHeader));
@@ -3359,10 +3329,10 @@ status_t ResourceTable::flattenLibraryTable(const sp<AaptFile>& dest, const Vect
             if (kIsDebug) {
                 fprintf(stderr, "  Entry %s -> 0x%02x\n",
                         String8(libPackage->getName()).string(),
-                        (uint8_t)libPackage->getAssignedId());
+                        (uint8_t) libPackage->getAssignedId());
             }
 
-            ResTable_lib_entry* entry = (ResTable_lib_entry*) dest->editDataInRange(
+            ResTable_lib_entry *entry = (ResTable_lib_entry *) dest->editDataInRange(
                     entryStart, sizeof(ResTable_lib_entry));
             memset(entry, 0, sizeof(*entry));
             entry->packageId = htodl(libPackage->getAssignedId());
@@ -3372,30 +3342,28 @@ status_t ResourceTable::flattenLibraryTable(const sp<AaptFile>& dest, const Vect
     return NO_ERROR;
 }
 
-void ResourceTable::writePublicDefinitions(const String16& package, FILE* fp)
-{
+void ResourceTable::writePublicDefinitions(const String16 &package, FILE *fp) {
     fprintf(fp,
-    "<!-- This file contains <public> resource definitions for all\n"
-    "     resources that were generated from the source data. -->\n"
-    "\n"
-    "<resources>\n");
+            "<!-- This file contains <public> resource definitions for all\n"
+                    "     resources that were generated from the source data. -->\n"
+                    "\n"
+                    "<resources>\n");
 
     writePublicDefinitions(package, fp, true);
     writePublicDefinitions(package, fp, false);
 
     fprintf(fp,
-    "\n"
-    "</resources>\n");
+            "\n"
+                    "</resources>\n");
 }
 
-void ResourceTable::writePublicDefinitions(const String16& package, FILE* fp, bool pub)
-{
+void ResourceTable::writePublicDefinitions(const String16 &package, FILE *fp, bool pub) {
     bool didHeader = false;
 
     sp<Package> pkg = mPackages.valueFor(package);
     if (pkg != NULL) {
         const size_t NT = pkg->getOrderedTypes().size();
-        for (size_t i=0; i<NT; i++) {
+        for (size_t i = 0; i < NT; i++) {
             sp<Type> t = pkg->getOrderedTypes().itemAt(i);
             if (t == NULL) {
                 continue;
@@ -3404,7 +3372,7 @@ void ResourceTable::writePublicDefinitions(const String16& package, FILE* fp, bo
             bool didType = false;
 
             const size_t NC = t->getOrderedConfigs().size();
-            for (size_t j=0; j<NC; j++) {
+            for (size_t j = 0; j < NC; j++) {
                 sp<ConfigList> c = t->getOrderedConfigs().itemAt(j);
                 if (c == NULL) {
                     continue;
@@ -3420,20 +3388,24 @@ void ResourceTable::writePublicDefinitions(const String16& package, FILE* fp, bo
                 }
                 if (!didHeader) {
                     if (pub) {
-                        fprintf(fp,"  <!-- PUBLIC SECTION.  These resources have been declared public.\n");
-                        fprintf(fp,"       Changes to these definitions will break binary compatibility. -->\n\n");
+                        fprintf(fp,
+                                "  <!-- PUBLIC SECTION.  These resources have been declared public.\n");
+                        fprintf(fp,
+                                "       Changes to these definitions will break binary compatibility. -->\n\n");
                     } else {
-                        fprintf(fp,"  <!-- PRIVATE SECTION.  These resources have not been declared public.\n");
-                        fprintf(fp,"       You can make them public my moving these lines into a file in res/values. -->\n\n");
+                        fprintf(fp,
+                                "  <!-- PRIVATE SECTION.  These resources have not been declared public.\n");
+                        fprintf(fp,
+                                "       You can make them public my moving these lines into a file in res/values. -->\n\n");
                     }
                     didHeader = true;
                 }
                 if (!pub) {
                     const size_t NE = c->getEntries().size();
-                    for (size_t k=0; k<NE; k++) {
-                        const SourcePos& pos = c->getEntries().valueAt(k)->getPos();
+                    for (size_t k = 0; k < NE; k++) {
+                        const SourcePos &pos = c->getEntries().valueAt(k)->getPos();
                         if (pos.file != "") {
-                            fprintf(fp,"  <!-- Declared at %s:%d -->\n",
+                            fprintf(fp, "  <!-- Declared at %s:%d -->\n",
                                     pos.file.string(), pos.line);
                         }
                     }
@@ -3447,36 +3419,24 @@ void ResourceTable::writePublicDefinitions(const String16& package, FILE* fp, bo
     }
 }
 
-ResourceTable::Item::Item(const SourcePos& _sourcePos,
+ResourceTable::Item::Item(const SourcePos &_sourcePos,
                           bool _isId,
-                          const String16& _value,
-                          const Vector<StringPool::entry_style_span>* _style,
+                          const String16 &_value,
+                          const Vector<StringPool::entry_style_span> *_style,
                           int32_t _format)
-    : sourcePos(_sourcePos)
-    , isId(_isId)
-    , value(_value)
-    , format(_format)
-    , bagKeyId(0)
-    , evaluating(false)
-{
+        : sourcePos(_sourcePos), isId(_isId), value(_value), format(_format), bagKeyId(0),
+          evaluating(false) {
     if (_style) {
         style = *_style;
     }
 }
 
-ResourceTable::Entry::Entry(const Entry& entry)
-    : RefBase()
-    , mName(entry.mName)
-    , mParent(entry.mParent)
-    , mType(entry.mType)
-    , mItem(entry.mItem)
-    , mItemFormat(entry.mItemFormat)
-    , mBag(entry.mBag)
-    , mNameIndex(entry.mNameIndex)
-    , mParentId(entry.mParentId)
-    , mPos(entry.mPos) {}
+ResourceTable::Entry::Entry(const Entry &entry)
+        : RefBase(), mName(entry.mName), mParent(entry.mParent), mType(entry.mType),
+          mItem(entry.mItem), mItemFormat(entry.mItemFormat), mBag(entry.mBag),
+          mNameIndex(entry.mNameIndex), mParentId(entry.mParentId), mPos(entry.mPos) {}
 
-ResourceTable::Entry& ResourceTable::Entry::operator=(const Entry& entry) {
+ResourceTable::Entry &ResourceTable::Entry::operator=(const Entry &entry) {
     mName = entry.mName;
     mParent = entry.mParent;
     mType = entry.mType;
@@ -3489,8 +3449,7 @@ ResourceTable::Entry& ResourceTable::Entry::operator=(const Entry& entry) {
     return *this;
 }
 
-status_t ResourceTable::Entry::makeItABag(const SourcePos& sourcePos)
-{
+status_t ResourceTable::Entry::makeItABag(const SourcePos &sourcePos) {
     if (mType == TYPE_BAG) {
         return NO_ERROR;
     }
@@ -3499,36 +3458,35 @@ status_t ResourceTable::Entry::makeItABag(const SourcePos& sourcePos)
         return NO_ERROR;
     }
     sourcePos.error("Resource entry %s is already defined as a single item.\n"
-                    "%s:%d: Originally defined here.\n",
+                            "%s:%d: Originally defined here.\n",
                     String8(mName).string(),
                     mItem.sourcePos.file.string(), mItem.sourcePos.line);
     return UNKNOWN_ERROR;
 }
 
-status_t ResourceTable::Entry::setItem(const SourcePos& sourcePos,
-                                       const String16& value,
-                                       const Vector<StringPool::entry_style_span>* style,
+status_t ResourceTable::Entry::setItem(const SourcePos &sourcePos,
+                                       const String16 &value,
+                                       const Vector<StringPool::entry_style_span> *style,
                                        int32_t format,
-                                       const bool overwrite)
-{
+                                       const bool overwrite) {
     Item item(sourcePos, false, value, style);
 
     if (mType == TYPE_BAG) {
         if (mBag.size() == 0) {
             sourcePos.error("Resource entry %s is already defined as a bag.",
-                    String8(mName).string());
+                            String8(mName).string());
         } else {
-            const Item& item(mBag.valueAt(0));
+            const Item &item(mBag.valueAt(0));
             sourcePos.error("Resource entry %s is already defined as a bag.\n"
-                            "%s:%d: Originally defined here.\n",
+                                    "%s:%d: Originally defined here.\n",
                             String8(mName).string(),
                             item.sourcePos.file.string(), item.sourcePos.line);
         }
         return UNKNOWN_ERROR;
     }
-    if ( (mType != TYPE_UNKNOWN) && (overwrite == false) ) {
+    if ((mType != TYPE_UNKNOWN) && (overwrite == false)) {
         sourcePos.error("Resource entry %s is already defined.\n"
-                        "%s:%d: Originally defined here.\n",
+                                "%s:%d: Originally defined here.\n",
                         String8(mName).string(),
                         mItem.sourcePos.file.string(), mItem.sourcePos.line);
         return UNKNOWN_ERROR;
@@ -3540,29 +3498,28 @@ status_t ResourceTable::Entry::setItem(const SourcePos& sourcePos,
     return NO_ERROR;
 }
 
-status_t ResourceTable::Entry::addToBag(const SourcePos& sourcePos,
-                                        const String16& key, const String16& value,
-                                        const Vector<StringPool::entry_style_span>* style,
-                                        bool replace, bool isId, int32_t format)
-{
+status_t ResourceTable::Entry::addToBag(const SourcePos &sourcePos,
+                                        const String16 &key, const String16 &value,
+                                        const Vector<StringPool::entry_style_span> *style,
+                                        bool replace, bool isId, int32_t format) {
     status_t err = makeItABag(sourcePos);
     if (err != NO_ERROR) {
         return err;
     }
 
     Item item(sourcePos, isId, value, style, format);
-    
+
     // XXX NOTE: there is an error if you try to have a bag with two keys,
     // one an attr and one an id, with the same name.  Not something we
     // currently ever have to worry about.
     ssize_t origKey = mBag.indexOfKey(key);
     if (origKey >= 0) {
         if (!replace) {
-            const Item& item(mBag.valueAt(origKey));
+            const Item &item(mBag.valueAt(origKey));
             sourcePos.error("Resource entry %s already has bag item %s.\n"
-                    "%s:%d: Originally defined here.\n",
-                    String8(mName).string(), String8(key).string(),
-                    item.sourcePos.file.string(), item.sourcePos.line);
+                                    "%s:%d: Originally defined here.\n",
+                            String8(mName).string(), String8(key).string(),
+                            item.sourcePos.file.string(), item.sourcePos.line);
             return UNKNOWN_ERROR;
         }
         //printf("Replacing %s with %s\n",
@@ -3574,7 +3531,7 @@ status_t ResourceTable::Entry::addToBag(const SourcePos& sourcePos,
     return NO_ERROR;
 }
 
-status_t ResourceTable::Entry::removeFromBag(const String16& key) {
+status_t ResourceTable::Entry::removeFromBag(const String16 &key) {
     if (mType != Entry::TYPE_BAG) {
         return NO_ERROR;
     }
@@ -3585,8 +3542,7 @@ status_t ResourceTable::Entry::removeFromBag(const String16& key) {
     return UNKNOWN_ERROR;
 }
 
-status_t ResourceTable::Entry::emptyBag(const SourcePos& sourcePos)
-{
+status_t ResourceTable::Entry::emptyBag(const SourcePos &sourcePos) {
     status_t err = makeItABag(sourcePos);
     if (err != NO_ERROR) {
         return err;
@@ -3596,15 +3552,14 @@ status_t ResourceTable::Entry::emptyBag(const SourcePos& sourcePos)
     return NO_ERROR;
 }
 
-status_t ResourceTable::Entry::generateAttributes(ResourceTable* table,
-                                                  const String16& package)
-{
+status_t ResourceTable::Entry::generateAttributes(ResourceTable *table,
+                                                  const String16 &package) {
     const String16 attr16("attr");
     const String16 id16("id");
     const size_t N = mBag.size();
-    for (size_t i=0; i<N; i++) {
-        const String16& key = mBag.keyAt(i);
-        const Item& it = mBag.valueAt(i);
+    for (size_t i = 0; i < N; i++) {
+        const String16 &key = mBag.keyAt(i);
+        const Item &it = mBag.valueAt(i);
         if (it.isId) {
             if (!table->hasBagOrEntry(key, &id16, &package)) {
                 String16 value("false");
@@ -3644,13 +3599,12 @@ status_t ResourceTable::Entry::generateAttributes(ResourceTable* table,
     return NO_ERROR;
 }
 
-status_t ResourceTable::Entry::assignResourceIds(ResourceTable* table,
-                                                 const String16& /* package */)
-{
+status_t ResourceTable::Entry::assignResourceIds(ResourceTable *table,
+                                                 const String16 & /* package */) {
     bool hasErrors = false;
-    
+
     if (mType == TYPE_BAG) {
-        const char* errorMsg;
+        const char *errorMsg;
         const String16 style16("style");
         const String16 attr16("attr");
         const String16 id16("id");
@@ -3659,21 +3613,21 @@ status_t ResourceTable::Entry::assignResourceIds(ResourceTable* table,
             mParentId = table->getResId(mParent, &style16, NULL, &errorMsg);
             if (mParentId == 0) {
                 mPos.error("Error retrieving parent for item: %s '%s'.\n",
-                        errorMsg, String8(mParent).string());
+                           errorMsg, String8(mParent).string());
                 hasErrors = true;
             }
         }
         const size_t N = mBag.size();
-        for (size_t i=0; i<N; i++) {
-            const String16& key = mBag.keyAt(i);
-            Item& it = mBag.editValueAt(i);
+        for (size_t i = 0; i < N; i++) {
+            const String16 &key = mBag.keyAt(i);
+            Item &it = mBag.editValueAt(i);
             it.bagKeyId = table->getResId(key,
-                    it.isId ? &id16 : &attr16, NULL, &errorMsg);
+                                          it.isId ? &id16 : &attr16, NULL, &errorMsg);
             //printf("Bag key of %s: #%08x\n", String8(key).string(), it.bagKeyId);
             if (it.bagKeyId == 0) {
                 it.sourcePos.error("Error: %s: %s '%s'.\n", errorMsg,
-                        String8(it.isId ? id16 : attr16).string(),
-                        String8(key).string());
+                                   String8(it.isId ? id16 : attr16).string(),
+                                   String8(key).string());
                 hasErrors = true;
             }
         }
@@ -3681,11 +3635,11 @@ status_t ResourceTable::Entry::assignResourceIds(ResourceTable* table,
     return hasErrors ? STATUST(UNKNOWN_ERROR) : NO_ERROR;
 }
 
-status_t ResourceTable::Entry::prepareFlatten(StringPool* strings, ResourceTable* table,
-        const String8* configTypeName, const ConfigDescription* config)
-{
+status_t ResourceTable::Entry::prepareFlatten(StringPool *strings, ResourceTable *table,
+                                              const String8 *configTypeName,
+                                              const ConfigDescription *config) {
     if (mType == TYPE_ITEM) {
-        Item& it = mItem;
+        Item &it = mItem;
         AccessorCookie ac(it.sourcePos, String8(mName), String8(it.value));
         if (!table->stringToValue(&it.parsedValue, strings,
                                   it.value, false, true, 0,
@@ -3695,9 +3649,9 @@ status_t ResourceTable::Entry::prepareFlatten(StringPool* strings, ResourceTable
         }
     } else if (mType == TYPE_BAG) {
         const size_t N = mBag.size();
-        for (size_t i=0; i<N; i++) {
-            const String16& key = mBag.keyAt(i);
-            Item& it = mBag.editValueAt(i);
+        for (size_t i = 0; i < N; i++) {
+            const String16 &key = mBag.keyAt(i);
+            Item &it = mBag.editValueAt(i);
             AccessorCookie ac(it.sourcePos, String8(key), String8(it.value));
             if (!table->stringToValue(&it.parsedValue, strings,
                                       it.value, false, true, it.bagKeyId,
@@ -3714,17 +3668,16 @@ status_t ResourceTable::Entry::prepareFlatten(StringPool* strings, ResourceTable
     return NO_ERROR;
 }
 
-status_t ResourceTable::Entry::remapStringValue(StringPool* strings)
-{
+status_t ResourceTable::Entry::remapStringValue(StringPool *strings) {
     if (mType == TYPE_ITEM) {
-        Item& it = mItem;
+        Item &it = mItem;
         if (it.parsedValue.dataType == Res_value::TYPE_STRING) {
             it.parsedValue.data = strings->mapOriginalPosToNewPos(it.parsedValue.data);
         }
     } else if (mType == TYPE_BAG) {
         const size_t N = mBag.size();
-        for (size_t i=0; i<N; i++) {
-            Item& it = mBag.editValueAt(i);
+        for (size_t i = 0; i < N; i++) {
+            Item &it = mBag.editValueAt(i);
             if (it.parsedValue.dataType == Res_value::TYPE_STRING) {
                 it.parsedValue.data = strings->mapOriginalPosToNewPos(it.parsedValue.data);
             }
@@ -3737,8 +3690,8 @@ status_t ResourceTable::Entry::remapStringValue(StringPool* strings)
     return NO_ERROR;
 }
 
-ssize_t ResourceTable::Entry::flatten(Bundle* /* bundle */, const sp<AaptFile>& data, bool isPublic)
-{
+ssize_t
+ResourceTable::Entry::flatten(Bundle * /* bundle */, const sp<AaptFile> &data, bool isPublic) {
     size_t amt = 0;
     ResTable_entry header;
     memset(&header, 0, sizeof(header));
@@ -3758,18 +3711,18 @@ ssize_t ResourceTable::Entry::flatten(Bundle* /* bundle */, const sp<AaptFile>& 
             return err;
         }
 
-        const Item& it = mItem;
+        const Item &it = mItem;
         Res_value par;
         memset(&par, 0, sizeof(par));
         par.size = htods(it.parsedValue.size);
         par.dataType = it.parsedValue.dataType;
         par.res0 = it.parsedValue.res0;
         par.data = htodl(it.parsedValue.data);
-        #if 0
+#if 0
         printf("Writing item (%s): type=%d, data=0x%x, res0=0x%x\n",
                String8(mName).string(), it.parsedValue.dataType,
                it.parsedValue.data, par.res0);
-        #endif
+#endif
         err = data->writeData(&par, it.parsedValue.size);
         if (err != NO_ERROR) {
             fprintf(stderr, "ERROR: out of memory creating Res_value\n");
@@ -3780,13 +3733,13 @@ ssize_t ResourceTable::Entry::flatten(Bundle* /* bundle */, const sp<AaptFile>& 
         size_t N = mBag.size();
         size_t i;
         // Create correct ordering of items.
-        KeyedVector<uint32_t, const Item*> items;
-        for (i=0; i<N; i++) {
-            const Item& it = mBag.valueAt(i);
+        KeyedVector<uint32_t, const Item *> items;
+        for (i = 0; i < N; i++) {
+            const Item &it = mBag.valueAt(i);
             items.add(it.bagKeyId, &it);
         }
         N = items.size();
-        
+
         ResTable_map_entry mapHeader;
         memcpy(&mapHeader, &header, sizeof(header));
         mapHeader.size = htods(sizeof(mapHeader));
@@ -3798,8 +3751,8 @@ ssize_t ResourceTable::Entry::flatten(Bundle* /* bundle */, const sp<AaptFile>& 
             return err;
         }
 
-        for (i=0; i<N; i++) {
-            const Item& it = *items.valueAt(i);
+        for (i = 0; i < N; i++) {
+            const Item &it = *items.valueAt(i);
             ResTable_map map;
             map.name.ident = htodl(it.bagKeyId);
             map.value.size = htods(it.parsedValue.size);
@@ -3817,9 +3770,8 @@ ssize_t ResourceTable::Entry::flatten(Bundle* /* bundle */, const sp<AaptFile>& 
     return amt;
 }
 
-void ResourceTable::ConfigList::appendComment(const String16& comment,
-                                              bool onlyIfEmpty)
-{
+void ResourceTable::ConfigList::appendComment(const String16 &comment,
+                                              bool onlyIfEmpty) {
     if (comment.size() <= 0) {
         return;
     }
@@ -3832,8 +3784,7 @@ void ResourceTable::ConfigList::appendComment(const String16& comment,
     mComment.append(comment);
 }
 
-void ResourceTable::ConfigList::appendTypeComment(const String16& comment)
-{
+void ResourceTable::ConfigList::appendTypeComment(const String16 &comment) {
     if (comment.size() <= 0) {
         return;
     }
@@ -3843,27 +3794,26 @@ void ResourceTable::ConfigList::appendTypeComment(const String16& comment)
     mTypeComment.append(comment);
 }
 
-status_t ResourceTable::Type::addPublic(const SourcePos& sourcePos,
-                                        const String16& name,
-                                        const uint32_t ident)
-{
-    #if 0
+status_t ResourceTable::Type::addPublic(const SourcePos &sourcePos,
+                                        const String16 &name,
+                                        const uint32_t ident) {
+#if 0
     int32_t entryIdx = Res_GETENTRY(ident);
     if (entryIdx < 0) {
         sourcePos.error("Public resource %s/%s has an invalid 0 identifier (0x%08x).\n",
                 String8(mName).string(), String8(name).string(), ident);
         return UNKNOWN_ERROR;
     }
-    #endif
+#endif
 
     int32_t typeIdx = Res_GETTYPE(ident);
     if (typeIdx >= 0) {
         typeIdx++;
         if (mPublicIndex > 0 && mPublicIndex != typeIdx) {
             sourcePos.error("Public resource %s/%s has conflicting type codes for its"
-                    " public identifiers (0x%x vs 0x%x).\n",
-                    String8(mName).string(), String8(name).string(),
-                    mPublicIndex, typeIdx);
+                                    " public identifiers (0x%x vs 0x%x).\n",
+                            String8(mName).string(), String8(name).string(),
+                            mPublicIndex, typeIdx);
             return UNKNOWN_ERROR;
         }
         mPublicIndex = typeIdx;
@@ -3876,13 +3826,13 @@ status_t ResourceTable::Type::addPublic(const SourcePos& sourcePos,
     if (mPublic.indexOfKey(name) < 0) {
         mPublic.add(name, Public(sourcePos, String16(), ident));
     } else {
-        Public& p = mPublic.editValueFor(name);
+        Public &p = mPublic.editValueFor(name);
         if (p.ident != ident) {
             sourcePos.error("Public resource %s/%s has conflicting public identifiers"
-                    " (0x%08x vs 0x%08x).\n"
-                    "%s:%d: Originally defined here.\n",
-                    String8(mName).string(), String8(name).string(), p.ident, ident,
-                    p.sourcePos.file.string(), p.sourcePos.line);
+                                    " (0x%08x vs 0x%08x).\n"
+                                    "%s:%d: Originally defined here.\n",
+                            String8(mName).string(), String8(name).string(), p.ident, ident,
+                            p.sourcePos.file.string(), p.sourcePos.line);
             return UNKNOWN_ERROR;
         }
     }
@@ -3890,67 +3840,65 @@ status_t ResourceTable::Type::addPublic(const SourcePos& sourcePos,
     return NO_ERROR;
 }
 
-void ResourceTable::Type::canAddEntry(const String16& name)
-{
+void ResourceTable::Type::canAddEntry(const String16 &name) {
     mCanAddEntries.add(name);
 }
 
-sp<ResourceTable::Entry> ResourceTable::Type::getEntry(const String16& entry,
-                                                       const SourcePos& sourcePos,
-                                                       const ResTable_config* config,
+sp<ResourceTable::Entry> ResourceTable::Type::getEntry(const String16 &entry,
+                                                       const SourcePos &sourcePos,
+                                                       const ResTable_config *config,
                                                        bool doSetIndex,
                                                        bool overlay,
-                                                       bool autoAddOverlay)
-{
+                                                       bool autoAddOverlay) {
     int pos = -1;
     sp<ConfigList> c = mConfigs.valueFor(entry);
     if (c == NULL) {
         if (overlay && !autoAddOverlay && mCanAddEntries.indexOf(entry) < 0) {
             sourcePos.error("Resource at %s appears in overlay but not"
-                            " in the base package; use <add-resource> to add.\n",
+                                    " in the base package; use <add-resource> to add.\n",
                             String8(entry).string());
             return NULL;
         }
         c = new ConfigList(entry, sourcePos);
         mConfigs.add(entry, c);
-        pos = (int)mOrderedConfigs.size();
+        pos = (int) mOrderedConfigs.size();
         mOrderedConfigs.add(c);
         if (doSetIndex) {
             c->setEntryIndex(pos);
         }
     }
-    
+
     ConfigDescription cdesc;
     if (config) cdesc = *config;
-    
+
     sp<Entry> e = c->getEntries().valueFor(cdesc);
     if (e == NULL) {
         if (kIsDebug) {
             if (config != NULL) {
                 printf("New entry at %s:%d: imsi:%d/%d lang:%c%c cnt:%c%c "
-                    "orien:%d touch:%d density:%d key:%d inp:%d nav:%d sz:%dx%d "
-                    "sw%ddp w%ddp h%ddp layout:%d\n",
-                      sourcePos.file.string(), sourcePos.line,
-                      config->mcc, config->mnc,
-                      config->language[0] ? config->language[0] : '-',
-                      config->language[1] ? config->language[1] : '-',
-                      config->country[0] ? config->country[0] : '-',
-                      config->country[1] ? config->country[1] : '-',
-                      config->orientation,
-                      config->touchscreen,
-                      config->density,
-                      config->keyboard,
-                      config->inputFlags,
-                      config->navigation,
-                      config->screenWidth,
-                      config->screenHeight,
-                      config->smallestScreenWidthDp,
-                      config->screenWidthDp,
-                      config->screenHeightDp,
-                      config->screenLayout);
+                               "orien:%d touch:%d density:%d key:%d inp:%d nav:%d sz:%dx%d "
+                               "sw%ddp w%ddp h%ddp layout:%d\n",
+                       sourcePos.file.string(), sourcePos.line,
+                       config->mcc, config->mnc,
+                       config->language[0] ? config->language[0] : '-',
+                       config->language[1] ? config->language[1] : '-',
+                       config->country[0] ? config->country[0] : '-',
+                       config->country[1] ? config->country[1] : '-',
+                       config->orientation,
+                       config->touchscreen,
+                       config->density,
+                       config->keyboard,
+                       config->inputFlags,
+                       config->navigation,
+                       config->screenWidth,
+                       config->screenHeight,
+                       config->smallestScreenWidthDp,
+                       config->screenWidthDp,
+                       config->screenHeightDp,
+                       config->screenLayout);
             } else {
                 printf("New entry at %s:%d: NULL config\n",
-                        sourcePos.file.string(), sourcePos.line);
+                       sourcePos.file.string(), sourcePos.line);
             }
         }
         e = new Entry(entry, sourcePos);
@@ -3972,11 +3920,11 @@ sp<ResourceTable::Entry> ResourceTable::Type::getEntry(const String16& entry,
         }
         */
     }
-    
+
     return e;
 }
 
-sp<ResourceTable::ConfigList> ResourceTable::Type::removeEntry(const String16& entry) {
+sp<ResourceTable::ConfigList> ResourceTable::Type::removeEntry(const String16 &entry) {
     ssize_t idx = mConfigs.indexOfKey(entry);
     if (idx < 0) {
         return NULL;
@@ -4002,7 +3950,7 @@ SortedVector<ConfigDescription> ResourceTable::Type::getUniqueConfigs() const {
         if (mOrderedConfigs[i] == NULL) {
             continue;
         }
-        const DefaultKeyedVector<ConfigDescription, sp<Entry> >& configs =
+        const DefaultKeyedVector<ConfigDescription, sp<Entry> > &configs =
                 mOrderedConfigs[i]->getEntries();
         const size_t configCount = configs.size();
         for (size_t j = 0; j < configCount; j++) {
@@ -4012,32 +3960,31 @@ SortedVector<ConfigDescription> ResourceTable::Type::getUniqueConfigs() const {
     return unique;
 }
 
-status_t ResourceTable::Type::applyPublicEntryOrder()
-{
+status_t ResourceTable::Type::applyPublicEntryOrder() {
     size_t N = mOrderedConfigs.size();
     Vector<sp<ConfigList> > origOrder(mOrderedConfigs);
     bool hasError = false;
 
     size_t i;
-    for (i=0; i<N; i++) {
+    for (i = 0; i < N; i++) {
         mOrderedConfigs.replaceAt(NULL, i);
     }
 
     const size_t NP = mPublic.size();
     //printf("Ordering %d configs from %d public defs\n", N, NP);
     size_t j;
-    for (j=0; j<NP; j++) {
-        const String16& name = mPublic.keyAt(j);
-        const Public& p = mPublic.valueAt(j);
+    for (j = 0; j < NP; j++) {
+        const String16 &name = mPublic.keyAt(j);
+        const Public &p = mPublic.valueAt(j);
         int32_t idx = Res_GETENTRY(p.ident);
         //printf("Looking for entry \"%s\"/\"%s\" (0x%08x) in %d...\n",
         //       String8(mName).string(), String8(name).string(), p.ident, N);
         bool found = false;
-        for (i=0; i<N; i++) {
+        for (i = 0; i < N; i++) {
             sp<ConfigList> e = origOrder.itemAt(i);
             //printf("#%d: \"%s\"\n", i, String8(e->getName()).string());
             if (e->getName() == name) {
-                if (idx >= (int32_t)mOrderedConfigs.size()) {
+                if (idx >= (int32_t) mOrderedConfigs.size()) {
                     mOrderedConfigs.resize(idx + 1);
                 }
 
@@ -4053,13 +4000,13 @@ status_t ResourceTable::Type::applyPublicEntryOrder()
                     sp<ConfigList> oe = mOrderedConfigs.itemAt(idx);
 
                     p.sourcePos.error("Multiple entry names declared for public entry"
-                            " identifier 0x%x in type %s (%s vs %s).\n"
-                            "%s:%d: Originally defined here.",
-                            idx+1, String8(mName).string(),
-                            String8(oe->getName()).string(),
-                            String8(name).string(),
-                            oe->getPublicSourcePos().file.string(),
-                            oe->getPublicSourcePos().line);
+                                              " identifier 0x%x in type %s (%s vs %s).\n"
+                                              "%s:%d: Originally defined here.",
+                                      idx + 1, String8(mName).string(),
+                                      String8(oe->getName()).string(),
+                                      String8(name).string(),
+                                      oe->getPublicSourcePos().file.string(),
+                                      oe->getPublicSourcePos().line);
                     hasError = true;
                 }
             }
@@ -4067,21 +4014,21 @@ status_t ResourceTable::Type::applyPublicEntryOrder()
 
         if (!found) {
             p.sourcePos.error("Public symbol %s/%s declared here is not defined.",
-                    String8(mName).string(), String8(name).string());
+                              String8(mName).string(), String8(name).string());
             hasError = true;
         }
     }
 
     //printf("Copying back in %d non-public configs, have %d\n", N, origOrder.size());
-    
+
     if (N != origOrder.size()) {
         printf("Internal error: remaining private symbol count mismatch\n");
         N = origOrder.size();
     }
-    
+
     j = 0;
-    for (i=0; i<N; i++) {
-        const sp<ConfigList>& e = origOrder.itemAt(i);
+    for (i = 0; i < N; i++) {
+        const sp<ConfigList> &e = origOrder.itemAt(i);
         // There will always be enough room for the remaining entries.
         while (mOrderedConfigs.itemAt(j) != NULL) {
             j++;
@@ -4093,17 +4040,15 @@ status_t ResourceTable::Type::applyPublicEntryOrder()
     return hasError ? STATUST(UNKNOWN_ERROR) : NO_ERROR;
 }
 
-ResourceTable::Package::Package(const String16& name, size_t packageId)
-    : mName(name), mPackageId(packageId),
-      mTypeStringsMapping(0xffffffff),
-      mKeyStringsMapping(0xffffffff)
-{
+ResourceTable::Package::Package(const String16 &name, size_t packageId)
+        : mName(name), mPackageId(packageId),
+          mTypeStringsMapping(0xffffffff),
+          mKeyStringsMapping(0xffffffff) {
 }
 
-sp<ResourceTable::Type> ResourceTable::Package::getType(const String16& type,
-                                                        const SourcePos& sourcePos,
-                                                        bool doSetIndex)
-{
+sp<ResourceTable::Type> ResourceTable::Package::getType(const String16 &type,
+                                                        const SourcePos &sourcePos,
+                                                        bool doSetIndex) {
     sp<Type> t = mTypes.valueFor(type);
     if (t == NULL) {
         t = new Type(type, sourcePos);
@@ -4118,8 +4063,7 @@ sp<ResourceTable::Type> ResourceTable::Package::getType(const String16& type,
     return t;
 }
 
-status_t ResourceTable::Package::setTypeStrings(const sp<AaptFile>& data)
-{
+status_t ResourceTable::Package::setTypeStrings(const sp<AaptFile> &data) {
     status_t err = setStrings(data, &mTypeStrings, &mTypeStringsMapping);
     if (err != NO_ERROR) {
         fprintf(stderr, "ERROR: Type string data is corrupt!\n");
@@ -4132,8 +4076,7 @@ status_t ResourceTable::Package::setTypeStrings(const sp<AaptFile>& data)
     return NO_ERROR;
 }
 
-status_t ResourceTable::Package::setKeyStrings(const sp<AaptFile>& data)
-{
+status_t ResourceTable::Package::setKeyStrings(const sp<AaptFile> &data) {
     status_t err = setStrings(data, &mKeyStrings, &mKeyStringsMapping);
     if (err != NO_ERROR) {
         fprintf(stderr, "ERROR: Key string data is corrupt!\n");
@@ -4146,10 +4089,9 @@ status_t ResourceTable::Package::setKeyStrings(const sp<AaptFile>& data)
     return NO_ERROR;
 }
 
-status_t ResourceTable::Package::setStrings(const sp<AaptFile>& data,
-                                            ResStringPool* strings,
-                                            DefaultKeyedVector<String16, uint32_t>* mappings)
-{
+status_t ResourceTable::Package::setStrings(const sp<AaptFile> &data,
+                                            ResStringPool *strings,
+                                            DefaultKeyedVector<String16, uint32_t> *mappings) {
     if (data->getData() == NULL) {
         return UNKNOWN_ERROR;
     }
@@ -4157,7 +4099,7 @@ status_t ResourceTable::Package::setStrings(const sp<AaptFile>& data,
     status_t err = strings->setTo(data->getData(), data->getSize());
     if (err == NO_ERROR) {
         const size_t N = strings->size();
-        for (size_t i=0; i<N; i++) {
+        for (size_t i = 0; i < N; i++) {
             size_t len;
             mappings->add(String16(strings->stringAt(i, &len)), i);
         }
@@ -4165,33 +4107,32 @@ status_t ResourceTable::Package::setStrings(const sp<AaptFile>& data,
     return err;
 }
 
-status_t ResourceTable::Package::applyPublicTypeOrder()
-{
+status_t ResourceTable::Package::applyPublicTypeOrder() {
     size_t N = mOrderedTypes.size();
     Vector<sp<Type> > origOrder(mOrderedTypes);
 
     size_t i;
-    for (i=0; i<N; i++) {
+    for (i = 0; i < N; i++) {
         mOrderedTypes.replaceAt(NULL, i);
     }
 
-    for (i=0; i<N; i++) {
+    for (i = 0; i < N; i++) {
         sp<Type> t = origOrder.itemAt(i);
         int32_t idx = t->getPublicIndex();
         if (idx > 0) {
             idx--;
-            while (idx >= (int32_t)mOrderedTypes.size()) {
+            while (idx >= (int32_t) mOrderedTypes.size()) {
                 mOrderedTypes.add();
             }
             if (mOrderedTypes.itemAt(idx) != NULL) {
                 sp<Type> ot = mOrderedTypes.itemAt(idx);
                 t->getFirstPublicSourcePos().error("Multiple type names declared for public type"
-                        " identifier 0x%x (%s vs %s).\n"
-                        "%s:%d: Originally defined here.",
-                        idx, String8(ot->getName()).string(),
-                        String8(t->getName()).string(),
-                        ot->getFirstPublicSourcePos().file.string(),
-                        ot->getFirstPublicSourcePos().line);
+                                                           " identifier 0x%x (%s vs %s).\n"
+                                                           "%s:%d: Originally defined here.",
+                                                   idx, String8(ot->getName()).string(),
+                                                   String8(t->getName()).string(),
+                                                   ot->getFirstPublicSourcePos().file.string(),
+                                                   ot->getFirstPublicSourcePos().line);
                 return UNKNOWN_ERROR;
             }
             mOrderedTypes.replaceAt(t, idx);
@@ -4201,9 +4142,9 @@ status_t ResourceTable::Package::applyPublicTypeOrder()
         }
     }
 
-    size_t j=0;
-    for (i=0; i<N; i++) {
-        const sp<Type>& t = origOrder.itemAt(i);
+    size_t j = 0;
+    for (i = 0; i < N; i++) {
+        const sp<Type> &t = origOrder.itemAt(i);
         // There will always be enough room for the remaining types.
         while (mOrderedTypes.itemAt(j) != NULL) {
             j++;
@@ -4224,7 +4165,7 @@ void ResourceTable::Package::movePrivateAttrs() {
     Vector<sp<ConfigList> > privateAttrs;
 
     bool hasPublic = false;
-    const Vector<sp<ConfigList> >& configs = attr->getOrderedConfigs();
+    const Vector<sp<ConfigList> > &configs = attr->getOrderedConfigs();
     const size_t configCount = configs.size();
     for (size_t i = 0; i < configCount; i++) {
         if (configs[i] == NULL) {
@@ -4249,16 +4190,16 @@ void ResourceTable::Package::movePrivateAttrs() {
 
     const size_t privateAttrCount = privateAttrs.size();
     for (size_t i = 0; i < privateAttrCount; i++) {
-        const sp<ConfigList>& cl = privateAttrs[i];
+        const sp<ConfigList> &cl = privateAttrs[i];
 
         // Remove the private attributes from their current type.
         attr->removeEntry(cl->getName());
 
         // Add it to the new type.
-        const DefaultKeyedVector<ConfigDescription, sp<Entry> >& entries = cl->getEntries();
+        const DefaultKeyedVector<ConfigDescription, sp<Entry> > &entries = cl->getEntries();
         const size_t entryCount = entries.size();
         for (size_t j = 0; j < entryCount; j++) {
-            const sp<Entry>& oldEntry = entries[j];
+            const sp<Entry> &oldEntry = entries[j];
             sp<Entry> entry = privateAttrType->getEntry(
                     cl->getName(), oldEntry->getPos(), &entries.keyAt(j));
             *entry = *oldEntry;
@@ -4269,19 +4210,17 @@ void ResourceTable::Package::movePrivateAttrs() {
     }
 }
 
-sp<ResourceTable::Package> ResourceTable::getPackage(const String16& package)
-{
+sp<ResourceTable::Package> ResourceTable::getPackage(const String16 &package) {
     if (package != mAssetsPackage) {
         return NULL;
     }
     return mPackages.valueFor(package);
 }
 
-sp<ResourceTable::Type> ResourceTable::getType(const String16& package,
-                                               const String16& type,
-                                               const SourcePos& sourcePos,
-                                               bool doSetIndex)
-{
+sp<ResourceTable::Type> ResourceTable::getType(const String16 &package,
+                                               const String16 &type,
+                                               const SourcePos &sourcePos,
+                                               bool doSetIndex) {
     sp<Package> p = getPackage(package);
     if (p == NULL) {
         return NULL;
@@ -4289,14 +4228,13 @@ sp<ResourceTable::Type> ResourceTable::getType(const String16& package,
     return p->getType(type, sourcePos, doSetIndex);
 }
 
-sp<ResourceTable::Entry> ResourceTable::getEntry(const String16& package,
-                                                 const String16& type,
-                                                 const String16& name,
-                                                 const SourcePos& sourcePos,
+sp<ResourceTable::Entry> ResourceTable::getEntry(const String16 &package,
+                                                 const String16 &type,
+                                                 const String16 &name,
+                                                 const SourcePos &sourcePos,
                                                  bool overlay,
-                                                 const ResTable_config* config,
-                                                 bool doSetIndex)
-{
+                                                 const ResTable_config *config,
+                                                 bool doSetIndex) {
     sp<Type> t = getType(package, type, sourcePos, doSetIndex);
     if (t == NULL) {
         return NULL;
@@ -4304,28 +4242,28 @@ sp<ResourceTable::Entry> ResourceTable::getEntry(const String16& package,
     return t->getEntry(name, sourcePos, config, doSetIndex, overlay, mBundle->getAutoAddOverlay());
 }
 
-sp<ResourceTable::ConfigList> ResourceTable::getConfigList(const String16& package,
-        const String16& type, const String16& name) const
-{
+sp<ResourceTable::ConfigList> ResourceTable::getConfigList(const String16 &package,
+                                                           const String16 &type,
+                                                           const String16 &name) const {
     const size_t packageCount = mOrderedPackages.size();
     for (size_t pi = 0; pi < packageCount; pi++) {
-        const sp<Package>& p = mOrderedPackages[pi];
+        const sp<Package> &p = mOrderedPackages[pi];
         if (p == NULL || p->getName() != package) {
             continue;
         }
 
-        const Vector<sp<Type> >& types = p->getOrderedTypes();
+        const Vector<sp<Type> > &types = p->getOrderedTypes();
         const size_t typeCount = types.size();
         for (size_t ti = 0; ti < typeCount; ti++) {
-            const sp<Type>& t = types[ti];
+            const sp<Type> &t = types[ti];
             if (t == NULL || t->getName() != type) {
                 continue;
             }
 
-            const Vector<sp<ConfigList> >& configs = t->getOrderedConfigs();
+            const Vector<sp<ConfigList> > &configs = t->getOrderedConfigs();
             const size_t configCount = configs.size();
             for (size_t ci = 0; ci < configCount; ci++) {
-                const sp<ConfigList>& cl = configs[ci];
+                const sp<ConfigList> &cl = configs[ci];
                 if (cl == NULL || cl->getName() != name) {
                     continue;
                 }
@@ -4338,9 +4276,8 @@ sp<ResourceTable::ConfigList> ResourceTable::getConfigList(const String16& packa
 }
 
 sp<const ResourceTable::Entry> ResourceTable::getEntry(uint32_t resID,
-                                                       const ResTable_config* config) const
-{
-    size_t pid = Res_GETPACKAGE(resID)+1;
+                                                       const ResTable_config *config) const {
+    size_t pid = Res_GETPACKAGE(resID) + 1;
     const size_t N = mOrderedPackages.size();
     sp<Package> p;
     for (size_t i = 0; i < N; i++) {
@@ -4357,14 +4294,14 @@ sp<const ResourceTable::Entry> ResourceTable::getEntry(uint32_t resID,
     }
 
     int tid = Res_GETTYPE(resID);
-    if (tid < 0 || tid >= (int)p->getOrderedTypes().size()) {
+    if (tid < 0 || tid >= (int) p->getOrderedTypes().size()) {
         fprintf(stderr, "warning: Type not found for resource #%08x\n", resID);
         return NULL;
     }
     sp<Type> t = p->getOrderedTypes()[tid];
 
     int eid = Res_GETENTRY(resID);
-    if (eid < 0 || eid >= (int)t->getOrderedConfigs().size()) {
+    if (eid < 0 || eid >= (int) t->getOrderedConfigs().size()) {
         fprintf(stderr, "warning: Entry not found for resource #%08x\n", resID);
         return NULL;
     }
@@ -4374,7 +4311,7 @@ sp<const ResourceTable::Entry> ResourceTable::getEntry(uint32_t resID,
         fprintf(stderr, "warning: Entry not found for resource #%08x\n", resID);
         return NULL;
     }
-    
+
     ConfigDescription cdesc;
     if (config) cdesc = *config;
     sp<Entry> e = c->getEntries().valueFor(cdesc);
@@ -4382,20 +4319,19 @@ sp<const ResourceTable::Entry> ResourceTable::getEntry(uint32_t resID,
         fprintf(stderr, "warning: Entry configuration not found for resource #%08x\n", resID);
         return NULL;
     }
-    
+
     return e;
 }
 
-const ResourceTable::Item* ResourceTable::getItem(uint32_t resID, uint32_t attrID) const
-{
+const ResourceTable::Item *ResourceTable::getItem(uint32_t resID, uint32_t attrID) const {
     sp<const Entry> e = getEntry(resID);
     if (e == NULL) {
         return NULL;
     }
 
     const size_t N = e->getBag().size();
-    for (size_t i=0; i<N; i++) {
-        const Item& it = e->getBag().valueAt(i);
+    for (size_t i = 0; i < N; i++) {
+        const Item &it = e->getBag().valueAt(i);
         if (it.bagKeyId == 0) {
             fprintf(stderr, "warning: ID not yet assigned to '%s' in bag '%s'\n",
                     String8(e->getName()).string(),
@@ -4410,9 +4346,8 @@ const ResourceTable::Item* ResourceTable::getItem(uint32_t resID, uint32_t attrI
 }
 
 bool ResourceTable::getItemValue(
-    uint32_t resID, uint32_t attrID, Res_value* outValue)
-{
-    const Item* item = getItem(resID, attrID);
+        uint32_t resID, uint32_t attrID, Res_value *outValue) {
+    const Item *item = getItem(resID, attrID);
 
     bool res = false;
     if (item != NULL) {
@@ -4420,7 +4355,7 @@ bool ResourceTable::getItemValue(
             sp<const Entry> e = getEntry(resID);
             const size_t N = e->getBag().size();
             size_t i;
-            for (i=0; i<N; i++) {
+            for (i = 0; i < N; i++) {
                 if (&e->getBag().valueAt(i) == item) {
                     break;
                 }
@@ -4515,8 +4450,9 @@ int ResourceTable::getPublicAttributeSdkLevel(uint32_t attrId) const {
 /**
  * First check the Manifest, then check the command line flag.
  */
-static int getMinSdkVersion(const Bundle* bundle) {
-    if (bundle->getManifestMinSdkVersion() != NULL && strlen(bundle->getManifestMinSdkVersion()) > 0) {
+static int getMinSdkVersion(const Bundle *bundle) {
+    if (bundle->getManifestMinSdkVersion() != NULL &&
+        strlen(bundle->getManifestMinSdkVersion()) > 0) {
         return atoi(bundle->getManifestMinSdkVersion());
     } else if (bundle->getMinSdkVersion() != NULL && strlen(bundle->getMinSdkVersion()) > 0) {
         return atoi(bundle->getMinSdkVersion());
@@ -4525,12 +4461,12 @@ static int getMinSdkVersion(const Bundle* bundle) {
 }
 
 bool ResourceTable::shouldGenerateVersionedResource(
-        const sp<ResourceTable::ConfigList>& configList,
-        const ConfigDescription& sourceConfig,
+        const sp<ResourceTable::ConfigList> &configList,
+        const ConfigDescription &sourceConfig,
         const int sdkVersionToGenerate) {
     assert(sdkVersionToGenerate > sourceConfig.sdkVersion);
     assert(configList != NULL);
-    const DefaultKeyedVector<ConfigDescription, sp<ResourceTable::Entry>>& entries
+    const DefaultKeyedVector<ConfigDescription, sp<ResourceTable::Entry>> &entries
             = configList->getEntries();
     ssize_t idx = entries.indexOfKey(sourceConfig);
 
@@ -4545,7 +4481,7 @@ bool ResourceTable::shouldGenerateVersionedResource(
     // are no higher sdk level versions of this resource.
     ConfigDescription tempConfig(sourceConfig);
     for (size_t i = static_cast<size_t>(idx) + 1; i < entries.size(); i++) {
-        const ConfigDescription& nextConfig = entries.keyAt(i);
+        const ConfigDescription &nextConfig = entries.keyAt(i);
         tempConfig.sdkVersion = nextConfig.sdkVersion;
         if (tempConfig == nextConfig) {
             // The two configs are the same, check the sdk version.
@@ -4599,7 +4535,7 @@ bool ResourceTable::shouldGenerateVersionedResource(
  * don't see the new attribute, but when running on L+ platforms, the
  * attribute will be respected.
  */
-status_t ResourceTable::modifyForCompat(const Bundle* bundle) {
+status_t ResourceTable::modifyForCompat(const Bundle *bundle) {
     const int minSdk = getMinSdkVersion(bundle);
     if (minSdk >= SDK_LOLLIPOP_MR1) {
         // Lollipop MR1 and up handles public attributes differently, no
@@ -4632,22 +4568,22 @@ status_t ResourceTable::modifyForCompat(const Bundle* bundle) {
                 }
 
                 Vector<key_value_pair_t<ConfigDescription, sp<Entry> > > entriesToAdd;
-                const DefaultKeyedVector<ConfigDescription, sp<Entry> >& entries =
+                const DefaultKeyedVector<ConfigDescription, sp<Entry> > &entries =
                         c->getEntries();
                 const size_t entryCount = entries.size();
                 for (size_t ei = 0; ei < entryCount; ei++) {
-                    const sp<Entry>& e = entries.valueAt(ei);
+                    const sp<Entry> &e = entries.valueAt(ei);
                     if (e == NULL || e->getType() != Entry::TYPE_BAG) {
                         continue;
                     }
 
-                    const ConfigDescription& config = entries.keyAt(ei);
+                    const ConfigDescription &config = entries.keyAt(ei);
                     if (config.sdkVersion >= SDK_LOLLIPOP_MR1) {
                         continue;
                     }
 
                     KeyedVector<int, Vector<String16> > attributesToRemove;
-                    const KeyedVector<String16, Item>& bag = e->getBag();
+                    const KeyedVector<String16, Item> &bag = e->getBag();
                     const size_t bagCount = bag.size();
                     for (size_t bi = 0; bi < bagCount; bi++) {
                         const uint32_t attrId = getResId(bag.keyAt(bi), &attr16);
@@ -4719,8 +4655,8 @@ status_t ResourceTable::modifyForCompat(const Bundle* bundle) {
                     }
 
                     sp<Entry> newEntry = t->getEntry(c->getName(),
-                            entriesToAdd[i].value->getPos(),
-                            &entriesToAdd[i].key);
+                                                     entriesToAdd[i].value->getPos(),
+                                                     &entriesToAdd[i].key);
 
                     *newEntry = *entriesToAdd[i].value;
                 }
@@ -4730,10 +4666,10 @@ status_t ResourceTable::modifyForCompat(const Bundle* bundle) {
     return NO_ERROR;
 }
 
-status_t ResourceTable::modifyForCompat(const Bundle* bundle,
-                                        const String16& resourceName,
-                                        const sp<AaptFile>& target,
-                                        const sp<XMLNode>& root) {
+status_t ResourceTable::modifyForCompat(const Bundle *bundle,
+                                        const String16 &resourceName,
+                                        const sp<AaptFile> &target,
+                                        const sp<XMLNode> &root) {
     const String16 vector16("vector");
     const String16 animatedVector16("animated-vector");
 
@@ -4761,14 +4697,14 @@ status_t ResourceTable::modifyForCompat(const Bundle* bundle,
         nodesToVisit.pop();
 
         if (bundle->getNoVersionVectors() && (node->getElementName() == vector16 ||
-                    node->getElementName() == animatedVector16)) {
+                                              node->getElementName() == animatedVector16)) {
             // We were told not to version vector tags, so skip the children here.
             continue;
         }
 
-        const Vector<XMLNode::attribute_entry>& attrs = node->getAttributes();
+        const Vector<XMLNode::attribute_entry> &attrs = node->getAttributes();
         for (size_t i = 0; i < attrs.size(); i++) {
-            const XMLNode::attribute_entry& attr = attrs[i];
+            const XMLNode::attribute_entry &attr = attrs[i];
             const int sdkLevel = getPublicAttributeSdkLevel(attr.nameResId);
             if (sdkLevel > 1 && sdkLevel > config.sdkVersion && sdkLevel > minSdk) {
                 if (newRoot == NULL) {
@@ -4794,7 +4730,7 @@ status_t ResourceTable::modifyForCompat(const Bundle* bundle,
         }
 
         // Schedule a visit to the children.
-        const Vector<sp<XMLNode> >& children = node->getChildren();
+        const Vector<sp<XMLNode> > &children = node->getChildren();
         const size_t childCount = children.size();
         for (size_t i = 0; i < childCount; i++) {
             nodesToVisit.push(children[i]);
@@ -4807,16 +4743,17 @@ status_t ResourceTable::modifyForCompat(const Bundle* bundle,
 
     // Look to see if we already have an overriding v21 configuration.
     sp<ConfigList> cl = getConfigList(String16(mAssets->getPackage()),
-            String16(target->getResourceType()), resourceName);
+                                      String16(target->getResourceType()), resourceName);
     if (shouldGenerateVersionedResource(cl, config, sdkVersionToGenerate)) {
         // We don't have an overriding entry for v21, so we must duplicate this one.
         ConfigDescription newConfig(config);
         newConfig.sdkVersion = sdkVersionToGenerate;
         sp<AaptFile> newFile = new AaptFile(target->getSourceFile(),
-                AaptGroupEntry(newConfig), target->getResourceType());
+                                            AaptGroupEntry(newConfig), target->getResourceType());
         String8 resPath = String8::format("res/%s/%s.xml",
-                newFile->getGroupEntry().toDirName(target->getResourceType()).string(),
-                String8(resourceName).string());
+                                          newFile->getGroupEntry().toDirName(
+                                                  target->getResourceType()).string(),
+                                          String8(resourceName).string());
         resPath.convertToResPath();
 
         // Add a resource table entry.
@@ -4831,12 +4768,12 @@ status_t ResourceTable::modifyForCompat(const Bundle* bundle,
         }
 
         addEntry(SourcePos(),
-                String16(mAssets->getPackage()),
-                String16(target->getResourceType()),
-                resourceName,
-                String16(resPath),
-                NULL,
-                &newConfig);
+                 String16(mAssets->getPackage()),
+                 String16(target->getResourceType()),
+                 resourceName,
+                 String16(resPath),
+                 NULL,
+                 &newConfig);
 
         // Schedule this to be compiled.
         CompileResourceWorkItem item;
@@ -4845,44 +4782,44 @@ status_t ResourceTable::modifyForCompat(const Bundle* bundle,
         item.file = newFile;
         item.xmlRoot = newRoot;
         item.needsCompiling = false;    // This step occurs after we parse/assign, so we don't need
-                                        // to do it again.
+        // to do it again.
         mWorkQueue.push(item);
     }
     return NO_ERROR;
 }
 
 void ResourceTable::getDensityVaryingResources(
-        KeyedVector<Symbol, Vector<SymbolDefinition> >& resources) {
+        KeyedVector<Symbol, Vector<SymbolDefinition> > &resources) {
     const ConfigDescription nullConfig;
 
     const size_t packageCount = mOrderedPackages.size();
     for (size_t p = 0; p < packageCount; p++) {
-        const Vector<sp<Type> >& types = mOrderedPackages[p]->getOrderedTypes();
+        const Vector<sp<Type> > &types = mOrderedPackages[p]->getOrderedTypes();
         const size_t typeCount = types.size();
         for (size_t t = 0; t < typeCount; t++) {
-            const sp<Type>& type = types[t];
+            const sp<Type> &type = types[t];
             if (type == NULL) {
                 continue;
             }
 
-            const Vector<sp<ConfigList> >& configs = type->getOrderedConfigs();
+            const Vector<sp<ConfigList> > &configs = type->getOrderedConfigs();
             const size_t configCount = configs.size();
             for (size_t c = 0; c < configCount; c++) {
-                const sp<ConfigList>& configList = configs[c];
+                const sp<ConfigList> &configList = configs[c];
                 if (configList == NULL) {
                     continue;
                 }
 
-                const DefaultKeyedVector<ConfigDescription, sp<Entry> >& configEntries
+                const DefaultKeyedVector<ConfigDescription, sp<Entry> > &configEntries
                         = configList->getEntries();
                 const size_t configEntryCount = configEntries.size();
                 for (size_t ce = 0; ce < configEntryCount; ce++) {
-                    const sp<Entry>& entry = configEntries.valueAt(ce);
+                    const sp<Entry> &entry = configEntries.valueAt(ce);
                     if (entry == NULL) {
                         continue;
                     }
 
-                    const ConfigDescription& config = configEntries.keyAt(ce);
+                    const ConfigDescription &config = configEntries.keyAt(ce);
                     if (AaptConfig::isDensityOnly(config)) {
                         // This configuration only varies with regards to density.
                         const Symbol symbol(
@@ -4902,12 +4839,12 @@ void ResourceTable::getDensityVaryingResources(
     }
 }
 
-static String16 buildNamespace(const String16& package) {
+static String16 buildNamespace(const String16 &package) {
     return String16("http://schemas.android.com/apk/res/") + package;
 }
 
-static sp<XMLNode> findOnlyChildElement(const sp<XMLNode>& parent) {
-    const Vector<sp<XMLNode> >& children = parent->getChildren();
+static sp<XMLNode> findOnlyChildElement(const sp<XMLNode> &parent) {
+    const Vector<sp<XMLNode> > &children = parent->getChildren();
     sp<XMLNode> onlyChild;
     for (size_t i = 0; i < children.size(); i++) {
         if (children[i]->getType() != XMLNode::TYPE_CDATA) {
@@ -4953,10 +4890,10 @@ static sp<XMLNode> findOnlyChildElement(const sp<XMLNode>& parent) {
  *         android:pathData="M300,70 l 0,-70 70,..." />
  * </vector>
  */
-status_t ResourceTable::processBundleFormat(const Bundle* bundle,
-                                            const String16& resourceName,
-                                            const sp<AaptFile>& target,
-                                            const sp<XMLNode>& root) {
+status_t ResourceTable::processBundleFormat(const Bundle *bundle,
+                                            const String16 &resourceName,
+                                            const sp<AaptFile> &target,
+                                            const sp<XMLNode> &root) {
     Vector<sp<XMLNode> > namespaces;
     if (root->getType() == XMLNode::TYPE_NAMESPACE) {
         namespaces.push(root);
@@ -4964,19 +4901,19 @@ status_t ResourceTable::processBundleFormat(const Bundle* bundle,
     return processBundleFormatImpl(bundle, resourceName, target, root, &namespaces);
 }
 
-status_t ResourceTable::processBundleFormatImpl(const Bundle* bundle,
-                                                const String16& resourceName,
-                                                const sp<AaptFile>& target,
-                                                const sp<XMLNode>& parent,
-                                                Vector<sp<XMLNode> >* namespaces) {
+status_t ResourceTable::processBundleFormatImpl(const Bundle *bundle,
+                                                const String16 &resourceName,
+                                                const sp<AaptFile> &target,
+                                                const sp<XMLNode> &parent,
+                                                Vector<sp<XMLNode> > *namespaces) {
     const String16 kAaptNamespaceUri16("http://schemas.android.com/aapt");
     const String16 kName16("name");
     const String16 kAttr16("attr");
     const String16 kAssetPackage16(mAssets->getPackage());
 
-    Vector<sp<XMLNode> >& children = parent->getChildren();
+    Vector<sp<XMLNode> > &children = parent->getChildren();
     for (size_t i = 0; i < children.size(); i++) {
-        const sp<XMLNode>& child = children[i];
+        const sp<XMLNode> &child = children[i];
 
         if (child->getType() == XMLNode::TYPE_CDATA) {
             continue;
@@ -4985,7 +4922,7 @@ status_t ResourceTable::processBundleFormatImpl(const Bundle* bundle,
         }
 
         if (child->getElementNamespace() != kAaptNamespaceUri16 ||
-                child->getElementName() != kAttr16) {
+            child->getElementName() != kAttr16) {
             status_t result = processBundleFormatImpl(bundle, resourceName, target, child,
                                                       namespaces);
             if (result != NO_ERROR) {
@@ -5011,14 +4948,14 @@ status_t ResourceTable::processBundleFormatImpl(const Bundle* bundle,
 
         // Find the special attribute 'parent-attr'. This attribute's value contains
         // the resource attribute for which this element should be assigned in the parent.
-        const XMLNode::attribute_entry* attr = child->getAttribute(String16(), kName16);
+        const XMLNode::attribute_entry *attr = child->getAttribute(String16(), kName16);
         if (attr == NULL) {
             source.error("inline resource definition must specify an attribute via 'name'");
             return UNKNOWN_ERROR;
         }
 
         // Parse the attribute name.
-        const char* errorMsg = NULL;
+        const char *errorMsg = NULL;
         String16 attrPackage, attrType, attrName;
         bool result = ResTable::expandResourceRef(attr->string.string(),
                                                   attr->string.size(),
@@ -5046,11 +4983,12 @@ status_t ResourceTable::processBundleFormatImpl(const Bundle* bundle,
             // This child element will be extracted into its own resource file.
             // Generate a name and path for it from its parent.
             nestedResourceName = String8::format("%s_%d",
-                        String8(resourceName).string(), suffix++);
+                                                 String8(resourceName).string(), suffix++);
             nestedResourcePath = String8::format("res/%s/%s.xml",
-                        target->getGroupEntry().toDirName(target->getResourceType())
-                                               .string(),
-                        nestedResourceName.string());
+                                                 target->getGroupEntry().toDirName(
+                                                                 target->getResourceType())
+                                                         .string(),
+                                                 nestedResourceName.string());
 
             // Lookup or create the entry for this name.
             sp<Entry> entry = getEntry(kAssetPackage16,
@@ -5077,14 +5015,15 @@ status_t ResourceTable::processBundleFormatImpl(const Bundle* bundle,
 
         if (bundle->getVerbose()) {
             source.printf("generating nested resource %s:%s/%s",
-                    mAssets->getPackage().string(), target->getResourceType().string(),
-                    nestedResourceName.string());
+                          mAssets->getPackage().string(), target->getResourceType().string(),
+                          nestedResourceName.string());
         }
 
         // Build the attribute reference and assign it to the parent.
         String16 nestedResourceRef = String16(String8::format("@%s:%s/%s",
-                    mAssets->getPackage().string(), target->getResourceType().string(),
-                    nestedResourceName.string()));
+                                                              mAssets->getPackage().string(),
+                                                              target->getResourceType().string(),
+                                                              nestedResourceName.string()));
 
         String16 attrNs = buildNamespace(attrPackage);
         if (parent->getAttribute(attrNs, attrName) != NULL) {
@@ -5106,7 +5045,7 @@ status_t ResourceTable::processBundleFormatImpl(const Bundle* bundle,
         // We do this because the order of namespace declarations and prefix usage is determined
         // by the developer and we do not want to override any decisions. Be conservative.
         for (size_t nsIndex = namespaces->size(); nsIndex > 0; nsIndex--) {
-            const sp<XMLNode>& ns = namespaces->itemAt(nsIndex - 1);
+            const sp<XMLNode> &ns = namespaces->itemAt(nsIndex - 1);
             sp<XMLNode> newNs = XMLNode::newNamespace(ns->getFilename(), ns->getNamespacePrefix(),
                                                       ns->getNamespaceUri());
             newNs->addChild(nestedRoot);

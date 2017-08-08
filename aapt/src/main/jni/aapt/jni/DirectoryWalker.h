@@ -25,16 +25,22 @@ using namespace android;
 class DirectoryWalker {
 public:
     virtual ~DirectoryWalker() {};
+
     virtual bool openDir(String8 path) = 0;
-    virtual bool openDir(const char* path) = 0;
+
+    virtual bool openDir(const char *path) = 0;
+
     // Advance to next directory entry
-    virtual struct dirent* nextEntry() = 0;
+    virtual struct dirent *nextEntry() = 0;
+
     // Get the stats for the current entry
-    virtual struct stat*   entryStats() = 0;
+    virtual struct stat *entryStats() = 0;
+
     // Clean Up
     virtual void closeDir() = 0;
+
     // This class is able to replicate itself on the heap
-    virtual DirectoryWalker* clone() = 0;
+    virtual DirectoryWalker *clone() = 0;
 
     // DATA MEMBERS
     // Current directory entry
@@ -57,42 +63,47 @@ public:
     virtual bool openDir(String8 path) {
         mBasePath = path;
         dir = NULL;
-        dir = opendir(mBasePath.string() );
+        dir = opendir(mBasePath.string());
 
         if (dir == NULL)
             return false;
 
         return true;
     };
-    virtual bool openDir(const char* path) {
+
+    virtual bool openDir(const char *path) {
         String8 p(path);
         openDir(p);
         return true;
     };
+
     // Advance to next directory entry
-    virtual struct dirent* nextEntry() {
-        struct dirent* entryPtr = readdir(dir);
+    virtual struct dirent *nextEntry() {
+        struct dirent *entryPtr = readdir(dir);
         if (entryPtr == NULL)
             return NULL;
 
         mEntry = *entryPtr;
         // Get stats
         String8 fullPath = mBasePath.appendPathCopy(mEntry.d_name);
-        stat(fullPath.string(),&mStats);
+        stat(fullPath.string(), &mStats);
         return &mEntry;
     };
+
     // Get the stats for the current entry
-    virtual struct stat*   entryStats() {
+    virtual struct stat *entryStats() {
         return &mStats;
     };
+
     virtual void closeDir() {
         closedir(dir);
     };
-    virtual DirectoryWalker* clone() {
+
+    virtual DirectoryWalker *clone() {
         return new SystemDirectoryWalker(*this);
     };
 private:
-    DIR* dir;
+    DIR *dir;
 };
 
 #endif // DIRECTORYWALKER_H

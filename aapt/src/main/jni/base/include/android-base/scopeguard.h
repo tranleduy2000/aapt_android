@@ -20,41 +20,44 @@
 #include <utility>  // for std::move
 
 namespace android {
-namespace base {
+    namespace base {
 
-template <typename F>
-class ScopeGuard {
- public:
-  ScopeGuard(F f) : f_(f), active_(true) {}
+        template<typename F>
+        class ScopeGuard {
+        public:
+            ScopeGuard(F f) : f_(f), active_(true) {}
 
-  ScopeGuard(ScopeGuard&& that) : f_(std::move(that.f_)), active_(that.active_) {
-    that.active_ = false;
-  }
+            ScopeGuard(ScopeGuard &&that) : f_(std::move(that.f_)), active_(that.active_) {
+                that.active_ = false;
+            }
 
-  ~ScopeGuard() {
-    if (active_) f_();
-  }
+            ~ScopeGuard() {
+                if (active_) f_();
+            }
 
-  ScopeGuard() = delete;
-  ScopeGuard(const ScopeGuard&) = delete;
-  void operator=(const ScopeGuard&) = delete;
-  void operator=(ScopeGuard&& that) = delete;
+            ScopeGuard() = delete;
 
-  void Disable() { active_ = false; }
+            ScopeGuard(const ScopeGuard &) = delete;
 
-  bool active() const { return active_; }
+            void operator=(const ScopeGuard &) = delete;
 
- private:
-  F f_;
-  bool active_;
-};
+            void operator=(ScopeGuard &&that) = delete;
 
-template <typename T>
-ScopeGuard<T> make_scope_guard(T f) {
-  return ScopeGuard<T>(f);
-}
+            void Disable() { active_ = false; }
 
-}  // namespace base
+            bool active() const { return active_; }
+
+        private:
+            F f_;
+            bool active_;
+        };
+
+        template<typename T>
+        ScopeGuard<T> make_scope_guard(T f) {
+            return ScopeGuard<T>(f);
+        }
+
+    }  // namespace base
 }  // namespace android
 
 #endif  // ANDROID_BASE_SCOPEGUARD_H

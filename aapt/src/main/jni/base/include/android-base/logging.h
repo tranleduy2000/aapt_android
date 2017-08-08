@@ -64,46 +64,51 @@
 #include "android-base/macros.h"
 
 namespace android {
-namespace base {
+    namespace base {
 
-enum LogSeverity {
-  VERBOSE,
-  DEBUG,
-  INFO,
-  WARNING,
-  ERROR,
-  FATAL_WITHOUT_ABORT,
-  FATAL,
-};
+        enum LogSeverity {
+            VERBOSE,
+            DEBUG,
+            INFO,
+            WARNING,
+            ERROR,
+            FATAL_WITHOUT_ABORT,
+            FATAL,
+        };
 
-enum LogId {
-  DEFAULT,
-  MAIN,
-  SYSTEM,
-};
+        enum LogId {
+            DEFAULT,
+            MAIN,
+            SYSTEM,
+        };
 
-using LogFunction = std::function<void(LogId, LogSeverity, const char*, const char*,
-                                       unsigned int, const char*)>;
-using AbortFunction = std::function<void(const char*)>;
+        using LogFunction = std::function<void(LogId, LogSeverity, const char *, const char *,
+                                               unsigned int, const char *)>;
+        using AbortFunction = std::function<void(const char *)>;
 
-void KernelLogger(LogId, LogSeverity, const char*, const char*, unsigned int, const char*);
-void StderrLogger(LogId, LogSeverity, const char*, const char*, unsigned int, const char*);
+        void
+        KernelLogger(LogId, LogSeverity, const char *, const char *, unsigned int, const char *);
 
-void DefaultAborter(const char* abort_message);
+        void
+        StderrLogger(LogId, LogSeverity, const char *, const char *, unsigned int, const char *);
+
+        void DefaultAborter(const char *abort_message);
 
 #ifdef __ANDROID__
+
 // We expose this even though it is the default because a user that wants to
 // override the default log buffer will have to construct this themselves.
-class LogdLogger {
- public:
-  explicit LogdLogger(LogId default_log_id = android::base::MAIN);
+        class LogdLogger {
+        public:
+            explicit LogdLogger(LogId default_log_id = android::base::MAIN);
 
-  void operator()(LogId, LogSeverity, const char* tag, const char* file,
-                  unsigned int line, const char* message);
+            void operator()(LogId, LogSeverity, const char *tag, const char *file,
+                            unsigned int line, const char *message);
 
- private:
-  LogId default_log_id_;
-};
+        private:
+            LogId default_log_id_;
+        };
+
 #endif
 
 // Configure logging based on ANDROID_LOG_TAGS environment variable.
@@ -119,37 +124,39 @@ class LogdLogger {
 #else
 #define INIT_LOGGING_DEFAULT_LOGGER StderrLogger
 #endif
-void InitLogging(char* argv[],
-                 LogFunction&& logger = INIT_LOGGING_DEFAULT_LOGGER,
-                 AbortFunction&& aborter = DefaultAborter);
+
+        void InitLogging(char *argv[],
+                         LogFunction &&logger = INIT_LOGGING_DEFAULT_LOGGER,
+                         AbortFunction &&aborter = DefaultAborter);
+
 #undef INIT_LOGGING_DEFAULT_LOGGER
 
 // Replace the current logger.
-void SetLogger(LogFunction&& logger);
+        void SetLogger(LogFunction &&logger);
 
 // Replace the current aborter.
-void SetAborter(AbortFunction&& aborter);
+        void SetAborter(AbortFunction &&aborter);
 
-class ErrnoRestorer {
- public:
-  ErrnoRestorer()
-      : saved_errno_(errno) {
-  }
+        class ErrnoRestorer {
+        public:
+            ErrnoRestorer()
+                    : saved_errno_(errno) {
+            }
 
-  ~ErrnoRestorer() {
-    errno = saved_errno_;
-  }
+            ~ErrnoRestorer() {
+                errno = saved_errno_;
+            }
 
-  // Allow this object to be used as part of && operation.
-  operator bool() const {
-    return true;
-  }
+            // Allow this object to be used as part of && operation.
+            operator bool() const {
+                return true;
+            }
 
- private:
-  const int saved_errno_;
+        private:
+            const int saved_errno_;
 
-  DISALLOW_COPY_AND_ASSIGN(ErrnoRestorer);
-};
+            DISALLOW_COPY_AND_ASSIGN(ErrnoRestorer);
+        };
 
 // A helper macro that produces an expression that accepts both a qualified name and an
 // unqualified name for a LogSeverity, and returns a LogSeverity value.
@@ -165,18 +172,18 @@ class ErrnoRestorer {
   return (severity); }())
 
 #ifdef __clang_analyzer__
-// Clang's static analyzer does not see the conditional statement inside
-// LogMessage's destructor that will abort on FATAL severity.
+        // Clang's static analyzer does not see the conditional statement inside
+        // LogMessage's destructor that will abort on FATAL severity.
 #define ABORT_AFTER_LOG_FATAL for (;; abort())
 
-struct LogAbortAfterFullExpr {
-  ~LogAbortAfterFullExpr() __attribute__((noreturn)) { abort(); }
-  explicit operator bool() const { return false; }
-};
-// Provides an expression that evaluates to the truthiness of `x`, automatically
-// aborting if `c` is true.
+        struct LogAbortAfterFullExpr {
+          ~LogAbortAfterFullExpr() __attribute__((noreturn)) { abort(); }
+          explicit operator bool() const { return false; }
+        };
+        // Provides an expression that evaluates to the truthiness of `x`, automatically
+        // aborting if `c` is true.
 #define ABORT_AFTER_LOG_EXPR_IF(c, x) (((c) && ::android::base::LogAbortAfterFullExpr()) || (x))
-// Note to the static analyzer that we always execute FATAL logs in practice.
+        // Note to the static analyzer that we always execute FATAL logs in practice.
 #define MUST_LOG_MESSAGE(severity) (SEVERITY_LAMBDA(severity) == ::android::base::FATAL)
 #else
 #define ABORT_AFTER_LOG_FATAL
@@ -320,9 +327,9 @@ struct LogAbortAfterFullExpr {
 // CHECK should be used unless profiling identifies a CHECK as being in
 // performance critical code.
 #if defined(NDEBUG) && !defined(__clang_analyzer__)
-static constexpr bool kEnableDChecks = false;
+        static constexpr bool kEnableDChecks = false;
 #else
-static constexpr bool kEnableDChecks = true;
+        static constexpr bool kEnableDChecks = true;
 #endif
 
 #define DCHECK(x) \
@@ -351,19 +358,20 @@ static constexpr bool kEnableDChecks = true;
 
 // Temporary class created to evaluate the LHS and RHS, used with
 // MakeEagerEvaluator to infer the types of LHS and RHS.
-template <typename LHS, typename RHS>
-struct EagerEvaluator {
-  constexpr EagerEvaluator(LHS l, RHS r) : lhs(l), rhs(r) {
-  }
-  LHS lhs;
-  RHS rhs;
-};
+        template<typename LHS, typename RHS>
+        struct EagerEvaluator {
+            constexpr EagerEvaluator(LHS l, RHS r) : lhs(l), rhs(r) {
+            }
+
+            LHS lhs;
+            RHS rhs;
+        };
 
 // Helper function for CHECK_xx.
-template <typename LHS, typename RHS>
-constexpr EagerEvaluator<LHS, RHS> MakeEagerEvaluator(LHS lhs, RHS rhs) {
-  return EagerEvaluator<LHS, RHS>(lhs, rhs);
-}
+        template<typename LHS, typename RHS>
+        constexpr EagerEvaluator<LHS, RHS> MakeEagerEvaluator(LHS lhs, RHS rhs) {
+            return EagerEvaluator<LHS, RHS>(lhs, rhs);
+        }
 
 // Explicitly instantiate EagerEvalue for pointers so that char*s aren't treated
 // as strings. To compare strings use CHECK_STREQ and CHECK_STRNE. We rely on
@@ -379,63 +387,76 @@ constexpr EagerEvaluator<LHS, RHS> MakeEagerEvaluator(LHS lhs, RHS rhs) {
     const void* lhs;                              \
     const void* rhs;                              \
   }
-EAGER_PTR_EVALUATOR(const char*, const char*);
-EAGER_PTR_EVALUATOR(const char*, char*);
-EAGER_PTR_EVALUATOR(char*, const char*);
-EAGER_PTR_EVALUATOR(char*, char*);
-EAGER_PTR_EVALUATOR(const unsigned char*, const unsigned char*);
-EAGER_PTR_EVALUATOR(const unsigned char*, unsigned char*);
-EAGER_PTR_EVALUATOR(unsigned char*, const unsigned char*);
-EAGER_PTR_EVALUATOR(unsigned char*, unsigned char*);
-EAGER_PTR_EVALUATOR(const signed char*, const signed char*);
-EAGER_PTR_EVALUATOR(const signed char*, signed char*);
-EAGER_PTR_EVALUATOR(signed char*, const signed char*);
-EAGER_PTR_EVALUATOR(signed char*, signed char*);
+
+        EAGER_PTR_EVALUATOR(const char*, const char*);
+
+        EAGER_PTR_EVALUATOR(const char*, char*);
+
+        EAGER_PTR_EVALUATOR(char*, const char*);
+
+        EAGER_PTR_EVALUATOR(char*, char*);
+
+        EAGER_PTR_EVALUATOR(const unsigned char*, const unsigned char*);
+
+        EAGER_PTR_EVALUATOR(const unsigned char*, unsigned char*);
+
+        EAGER_PTR_EVALUATOR(unsigned char*, const unsigned char*);
+
+        EAGER_PTR_EVALUATOR(unsigned char*, unsigned char*);
+
+        EAGER_PTR_EVALUATOR(const signed char*, const signed char*);
+
+        EAGER_PTR_EVALUATOR(const signed char*, signed char*);
+
+        EAGER_PTR_EVALUATOR(signed char*, const signed char*);
+
+        EAGER_PTR_EVALUATOR(signed char*, signed char*);
 
 // Data for the log message, not stored in LogMessage to avoid increasing the
 // stack size.
-class LogMessageData;
+        class LogMessageData;
 
 // A LogMessage is a temporarily scoped object used by LOG and the unlikely part
 // of a CHECK. The destructor will abort if the severity is FATAL.
-class LogMessage {
- public:
-  LogMessage(const char* file, unsigned int line, LogId id,
-             LogSeverity severity, int error);
+        class LogMessage {
+        public:
+            LogMessage(const char *file, unsigned int line, LogId id,
+                       LogSeverity severity, int error);
 
-  ~LogMessage();
+            ~LogMessage();
 
-  // Returns the stream associated with the message, the LogMessage performs
-  // output when it goes out of scope.
-  std::ostream& stream();
+            // Returns the stream associated with the message, the LogMessage performs
+            // output when it goes out of scope.
+            std::ostream &stream();
 
-  // The routine that performs the actual logging.
-  static void LogLine(const char* file, unsigned int line, LogId id,
-                      LogSeverity severity, const char* msg);
+            // The routine that performs the actual logging.
+            static void LogLine(const char *file, unsigned int line, LogId id,
+                                LogSeverity severity, const char *msg);
 
- private:
-  const std::unique_ptr<LogMessageData> data_;
+        private:
+            const std::unique_ptr<LogMessageData> data_;
 
-  DISALLOW_COPY_AND_ASSIGN(LogMessage);
-};
+            DISALLOW_COPY_AND_ASSIGN(LogMessage);
+        };
 
 // Get the minimum severity level for logging.
-LogSeverity GetMinimumLogSeverity();
+        LogSeverity GetMinimumLogSeverity();
 
 // Set the minimum severity level for logging, returning the old severity.
-LogSeverity SetMinimumLogSeverity(LogSeverity new_severity);
+        LogSeverity SetMinimumLogSeverity(LogSeverity new_severity);
 
 // Allows to temporarily change the minimum severity level for logging.
-class ScopedLogSeverity {
- public:
-  explicit ScopedLogSeverity(LogSeverity level);
-  ~ScopedLogSeverity();
+        class ScopedLogSeverity {
+        public:
+            explicit ScopedLogSeverity(LogSeverity level);
 
- private:
-  LogSeverity old_;
-};
+            ~ScopedLogSeverity();
 
-}  // namespace base
+        private:
+            LogSeverity old_;
+        };
+
+    }  // namespace base
 }  // namespace android
 
 #endif  // ANDROID_BASE_LOGGING_H

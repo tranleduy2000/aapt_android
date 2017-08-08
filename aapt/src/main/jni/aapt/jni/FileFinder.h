@@ -22,9 +22,9 @@ using namespace android;
 // for the testing implementation.
 class FileFinder {
 public:
-    virtual bool findFiles(String8 basePath, Vector<String8>& extensions,
-                           KeyedVector<String8,time_t>& fileStore,
-                           DirectoryWalker* dw) = 0;
+    virtual bool findFiles(String8 basePath, Vector<String8> &extensions,
+                           KeyedVector<String8, time_t> &fileStore,
+                           DirectoryWalker *dw) = 0;
 
     virtual ~FileFinder() {};
 };
@@ -53,9 +53,9 @@ public:
      * Calls checkAndAddFile on each file encountered in the directory tree
      * Recursively descends into subdirectories.
      */
-    virtual bool findFiles(String8 basePath, Vector<String8>& extensions,
-                           KeyedVector<String8,time_t>& fileStore,
-                           DirectoryWalker* dw);
+    virtual bool findFiles(String8 basePath, Vector<String8> &extensions,
+                           KeyedVector<String8, time_t> &fileStore,
+                           DirectoryWalker *dw);
 
 private:
     /**
@@ -72,9 +72,10 @@ private:
      *    time as the value.
      *
      */
-    static void checkAndAddFile(const String8& path, const struct stat* stats,
-                                Vector<String8>& extensions,
-                                KeyedVector<String8,time_t>& fileStore);
+    static void checkAndAddFile(const String8 &path, const struct stat *stats,
+                                Vector<String8> &extensions,
+                                KeyedVector<String8, time_t> &fileStore);
 
 };
+
 #endif // FILEFINDER_H

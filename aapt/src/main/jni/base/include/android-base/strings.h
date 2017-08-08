@@ -22,52 +22,57 @@
 #include <vector>
 
 namespace android {
-namespace base {
+    namespace base {
 
 // Splits a string into a vector of strings.
 //
 // The string is split at each occurrence of a character in delimiters.
 //
 // The empty string is not a valid delimiter list.
-std::vector<std::string> Split(const std::string& s,
-                               const std::string& delimiters);
+        std::vector<std::string> Split(const std::string &s,
+                                       const std::string &delimiters);
 
 // Trims whitespace off both ends of the given string.
-std::string Trim(const std::string& s);
+        std::string Trim(const std::string &s);
 
 // Joins a container of things into a single string, using the given separator.
-template <typename ContainerT, typename SeparatorT>
-std::string Join(const ContainerT& things, SeparatorT separator) {
-  if (things.empty()) {
-    return "";
-  }
+        template<typename ContainerT, typename SeparatorT>
+        std::string Join(const ContainerT &things, SeparatorT separator) {
+            if (things.empty()) {
+                return "";
+            }
 
-  std::ostringstream result;
-  result << *things.begin();
-  for (auto it = std::next(things.begin()); it != things.end(); ++it) {
-    result << separator << *it;
-  }
-  return result.str();
-}
+            std::ostringstream result;
+            result << *things.begin();
+            for (auto it = std::next(things.begin()); it != things.end(); ++it) {
+                result << separator << *it;
+            }
+            return result.str();
+        }
 
 // We instantiate the common cases in strings.cpp.
-extern template std::string Join(const std::vector<std::string>&, char);
-extern template std::string Join(const std::vector<const char*>&, char);
-extern template std::string Join(const std::vector<std::string>&, const std::string&);
-extern template std::string Join(const std::vector<const char*>&, const std::string&);
+        extern template std::string Join(const std::vector<std::string> &, char);
+
+        extern template std::string Join(const std::vector<const char *> &, char);
+
+        extern template std::string Join(const std::vector<std::string> &, const std::string &);
+
+        extern template std::string Join(const std::vector<const char *> &, const std::string &);
 
 // Tests whether 's' starts with 'prefix'.
-bool StartsWith(const std::string& s, const char* prefix);
-bool StartsWithIgnoreCase(const std::string& s, const char* prefix);
+        bool StartsWith(const std::string &s, const char *prefix);
+
+        bool StartsWithIgnoreCase(const std::string &s, const char *prefix);
 
 // Tests whether 's' ends with 'suffix'.
-bool EndsWith(const std::string& s, const char* suffix);
-bool EndsWithIgnoreCase(const std::string& s, const char* suffix);
+        bool EndsWith(const std::string &s, const char *suffix);
+
+        bool EndsWithIgnoreCase(const std::string &s, const char *suffix);
 
 // Tests whether 'lhs' equals 'rhs', ignoring case.
-bool EqualsIgnoreCase(const std::string& lhs, const std::string& rhs);
+        bool EqualsIgnoreCase(const std::string &lhs, const std::string &rhs);
 
-}  // namespace base
+    }  // namespace base
 }  // namespace android
 
 #endif  // ANDROID_BASE_STRINGS_H

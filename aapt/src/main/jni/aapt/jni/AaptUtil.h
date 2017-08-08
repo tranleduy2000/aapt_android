@@ -24,40 +24,42 @@
 
 namespace AaptUtil {
 
-android::Vector<android::String8> split(const android::String8& str, const char sep);
-android::Vector<android::String8> splitAndLowerCase(const android::String8& str, const char sep);
+    android::Vector<android::String8> split(const android::String8 &str, const char sep);
 
-template <typename KEY, typename VALUE>
-void appendValue(android::KeyedVector<KEY, android::Vector<VALUE> >& keyedVector,
-        const KEY& key, const VALUE& value);
+    android::Vector<android::String8>
+    splitAndLowerCase(const android::String8 &str, const char sep);
 
-template <typename KEY, typename VALUE>
-void appendValue(android::KeyedVector<KEY, android::SortedVector<VALUE> >& keyedVector,
-        const KEY& key, const VALUE& value);
+    template<typename KEY, typename VALUE>
+    void appendValue(android::KeyedVector<KEY, android::Vector<VALUE> > &keyedVector,
+                     const KEY &key, const VALUE &value);
+
+    template<typename KEY, typename VALUE>
+    void appendValue(android::KeyedVector<KEY, android::SortedVector<VALUE> > &keyedVector,
+                     const KEY &key, const VALUE &value);
 
 //
 // Implementations
 //
 
-template <typename KEY, typename VALUE>
-void appendValue(android::KeyedVector<KEY, android::Vector<VALUE> >& keyedVector,
-        const KEY& key, const VALUE& value) {
-    ssize_t idx = keyedVector.indexOfKey(key);
-    if (idx < 0) {
-        idx = keyedVector.add(key, android::Vector<VALUE>());
+    template<typename KEY, typename VALUE>
+    void appendValue(android::KeyedVector<KEY, android::Vector<VALUE> > &keyedVector,
+                     const KEY &key, const VALUE &value) {
+        ssize_t idx = keyedVector.indexOfKey(key);
+        if (idx < 0) {
+            idx = keyedVector.add(key, android::Vector<VALUE>());
+        }
+        keyedVector.editValueAt(idx).add(value);
     }
-    keyedVector.editValueAt(idx).add(value);
-}
 
-template <typename KEY, typename VALUE>
-void appendValue(android::KeyedVector<KEY, android::SortedVector<VALUE> >& keyedVector,
-        const KEY& key, const VALUE& value) {
-    ssize_t idx = keyedVector.indexOfKey(key);
-    if (idx < 0) {
-        idx = keyedVector.add(key, android::SortedVector<VALUE>());
+    template<typename KEY, typename VALUE>
+    void appendValue(android::KeyedVector<KEY, android::SortedVector<VALUE> > &keyedVector,
+                     const KEY &key, const VALUE &value) {
+        ssize_t idx = keyedVector.indexOfKey(key);
+        if (idx < 0) {
+            idx = keyedVector.add(key, android::SortedVector<VALUE>());
+        }
+        keyedVector.editValueAt(idx).add(value);
     }
-    keyedVector.editValueAt(idx).add(value);
-}
 
 } // namespace AaptUtil
 

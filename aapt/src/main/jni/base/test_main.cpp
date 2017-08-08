@@ -18,8 +18,8 @@
 
 #include "android-base/logging.h"
 
-int main(int argc, char** argv) {
-  ::testing::InitGoogleTest(&argc, argv);
-  android::base::InitLogging(argv, android::base::StderrLogger);
-  return RUN_ALL_TESTS();
+int main(int argc, char **argv) {
+    ::testing::InitGoogleTest(&argc, argv);
+    android::base::InitLogging(argv, android::base::StderrLogger);
+    return RUN_ALL_TESTS();
 }

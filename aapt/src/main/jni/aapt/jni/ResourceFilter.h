@@ -20,7 +20,7 @@
 
 class ResourceFilter : public virtual android::RefBase {
 public:
-    virtual bool match(const android::ResTable_config& config) const = 0;
+    virtual bool match(const android::ResTable_config &config) const = 0;
 };
 
 /**
@@ -29,12 +29,11 @@ public:
 class WeakResourceFilter : public ResourceFilter {
 public:
     WeakResourceFilter()
-        : mContainsPseudoAccented(false)
-        , mContainsPseudoBidi(false) {}
+            : mContainsPseudoAccented(false), mContainsPseudoBidi(false) {}
 
-    android::status_t parse(const android::String8& str);
+    android::status_t parse(const android::String8 &str);
 
-    bool match(const android::ResTable_config& config) const;
+    bool match(const android::ResTable_config &config) const;
 
     inline bool isEmpty() const {
         return mConfigMask == 0;
@@ -78,12 +77,13 @@ private:
 class StrongResourceFilter : public ResourceFilter {
 public:
     StrongResourceFilter() {}
-    explicit StrongResourceFilter(const std::set<ConfigDescription>& configs)
-        : mConfigs(configs) {}
 
-    android::status_t parse(const android::String8& str);
+    explicit StrongResourceFilter(const std::set<ConfigDescription> &configs)
+            : mConfigs(configs) {}
 
-    bool match(const android::ResTable_config& config) const {
+    android::status_t parse(const android::String8 &str);
+
+    bool match(const android::ResTable_config &config) const {
         std::set<ConfigDescription>::const_iterator iter = mConfigs.begin();
         for (; iter != mConfigs.end(); iter++) {
             if (iter->compare(config) == 0) {
@@ -93,7 +93,7 @@ public:
         return false;
     }
 
-    inline const std::set<ConfigDescription>& getConfigs() const {
+    inline const std::set<ConfigDescription> &getConfigs() const {
         return mConfigs;
     }
 
@@ -106,10 +106,10 @@ private:
  */
 class InverseResourceFilter : public ResourceFilter {
 public:
-    explicit InverseResourceFilter(const android::sp<ResourceFilter>& filter)
-        : mFilter(filter) {}
+    explicit InverseResourceFilter(const android::sp<ResourceFilter> &filter)
+            : mFilter(filter) {}
 
-    bool match(const android::ResTable_config& config) const {
+    bool match(const android::ResTable_config &config) const {
         return !mFilter->match(config);
     }
 
@@ -122,11 +122,11 @@ private:
  */
 class AndResourceFilter : public ResourceFilter {
 public:
-    void addFilter(const android::sp<ResourceFilter>& filter) {
+    void addFilter(const android::sp<ResourceFilter> &filter) {
         mFilters.add(filter);
     }
 
-    bool match(const android::ResTable_config& config) const {
+    bool match(const android::ResTable_config &config) const {
         const size_t N = mFilters.size();
         for (size_t i = 0; i < N; i++) {
             if (!mFilters[i]->match(config)) {
@@ -139,4 +139,5 @@ public:
 private:
     android::Vector<android::sp<ResourceFilter> > mFilters;
 };
+
 #endif

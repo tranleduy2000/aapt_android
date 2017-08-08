@@ -84,7 +84,7 @@ libcutils_SRC_FILES := \
   libcutils/jni/ashmem-dev.c \
   libcutils/jni/mq.c \
   libcutils/jni/uevent.c
-  
+
 ifeq ($(TARGET_ARCH),arm)
 libcutils_SRC_FILES += libcutils/jni/arch-arm/memset32.S
 else  # !arm
@@ -109,7 +109,7 @@ endif
 libcutils_CFLAGS += $(libcutils_targetSmpFlag)
 libcutils_CFLAGS += -DHAVE_PTHREADS -DHAVE_SCHED_H -DHAVE_SYS_UIO_H -DHAVE_ANDROID_OS -DHAVE_IOCTL -DHAVE_TM_GMTOFF
 libcutils_C_INCLUDES := $(LOCAL_PATH)/libcutils/jni/include
-	
+
 #############################################################################
 # libhost definitions
 #############################################################################
@@ -136,7 +136,6 @@ libhost_C_INCLUDES := $(LOCAL_PATH)/libhost/jni/include
 # libutils definitions
 #############################################################################
 libutils_SRC_FILES := \
-	libutils/jni/CallStack.cpp \
 	libutils/jni/FileMap.cpp \
 	libutils/jni/JenkinsHash.cpp \
 	libutils/jni/LinearTransform.cpp \
@@ -158,7 +157,6 @@ libutils_SRC_FILES := \
 	libutils/jni/misc.cpp \
 	libutils/jni/BlobCache.cpp \
     libutils/jni/Looper.cpp \
-	libutils/jni/ProcessCallStack.cpp \
 	libutils/jni/Trace.cpp \
 	libutils/jni/safe_iop.cpp
 
@@ -182,15 +180,14 @@ androidfw_SRC_FILES := \
     androidfw/jni/LocaleData.cpp \
     androidfw/jni/misc.cpp \
     androidfw/jni/ObbFile.cpp \
-    androidfw/jni/ResourceTypes.cpp" \
+    androidfw/jni/ResourceTypes.cpp \
     androidfw/jni/StreamingZipInflater.cpp \
     androidfw/jni/TypeWrappers.cpp \
     androidfw/jni/ZipFileRO.cpp \
     androidfw/jni/ZipUtils.cpp \
     androidfw/jni/BackupData.cpp \
     androidfw/jni/BackupHelpers.cpp \
-    androidfw/jni/CursorWindow.cpp \
-    androidfw/jni/DisplayEventDispatcher.cpp \
+    androidfw/jni/CursorWindow.cpp
 
 androidfw_C_INCLUDES := $(LOCAL_PATH)/androidfw/jni/include
 
@@ -198,16 +195,7 @@ androidfw_C_INCLUDES := $(LOCAL_PATH)/androidfw/jni/include
 # libbacktrace definitions
 #############################################################################
 libbacktrace_SRC_FILES := \
-    libbacktrace/Backtrace.cpp \
-    libbacktrace/BacktraceCurrent.cpp \
-    libbacktrace/BacktracePtrace.cpp \
-    libbacktrace/thread_utils.c \
-    libbacktrace/ThreadEntry.cpp \
-    libbacktrace/UnwindCurrent.cpp \
-    libbacktrace/UnwindMap.cpp \
-    libbacktrace/UnwindPtrace.cpp \
-    libbacktrace/UnwindStack.cpp \
-    libbacktrace/UnwindStackMap.cpp \
+    libbacktrace/thread_utils.c
 
 libbacktrace_C_INCLUDES := $(LOCAL_PATH)/libbacktrace/include
 
@@ -232,7 +220,7 @@ base_SRC_FILES := \
     base/stringprintf.cpp \
     base/strings.cpp
 
-base_C_INCLUDES := $(LOCAL_PATH)/include/include
+base_C_INCLUDES := $(LOCAL_PATH)/base/include
 
 #############################################################################
 # aapt definitions

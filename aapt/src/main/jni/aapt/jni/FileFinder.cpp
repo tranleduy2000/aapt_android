@@ -20,28 +20,27 @@
 using android::String8;
 
 // Private function to check whether a file is a directory or not
-bool isDirectory(const char* filename) {
+bool isDirectory(const char *filename) {
     struct stat fileStat;
     if (stat(filename, &fileStat) == -1) {
         return false;
     }
-    return(S_ISDIR(fileStat.st_mode));
+    return (S_ISDIR(fileStat.st_mode));
 }
 
 
 // Private function to check whether a file is a regular file or not
-bool isFile(const char* filename) {
+bool isFile(const char *filename) {
     struct stat fileStat;
     if (stat(filename, &fileStat) == -1) {
         return false;
     }
-    return(S_ISREG(fileStat.st_mode));
+    return (S_ISREG(fileStat.st_mode));
 }
 
-bool SystemFileFinder::findFiles(String8 basePath, Vector<String8>& extensions,
-                                 KeyedVector<String8,time_t>& fileStore,
-                                 DirectoryWalker* dw)
-{
+bool SystemFileFinder::findFiles(String8 basePath, Vector<String8> &extensions,
+                                 KeyedVector<String8, time_t> &fileStore,
+                                 DirectoryWalker *dw) {
     // Scan the directory pointed to by basePath
     // check files and recurse into subdirectories.
     if (!dw->openDir(basePath)) {
@@ -51,7 +50,7 @@ bool SystemFileFinder::findFiles(String8 basePath, Vector<String8>& extensions,
      *  Go through all directory entries. Check each file using checkAndAddFile
      *  and recurse into sub-directories.
      */
-    struct dirent* entry;
+    struct dirent *entry;
     while ((entry = dw->nextEntry()) != NULL) {
         String8 entryName(entry->d_name);
         if (entry->d_name[0] == '.') // Skip hidden files and directories
@@ -59,15 +58,15 @@ bool SystemFileFinder::findFiles(String8 basePath, Vector<String8>& extensions,
 
         String8 fullPath = basePath.appendPathCopy(entryName);
         // If this entry is a directory we'll recurse into it
-        if (isDirectory(fullPath.string()) ) {
-            DirectoryWalker* copy = dw->clone();
-            findFiles(fullPath, extensions, fileStore,copy);
+        if (isDirectory(fullPath.string())) {
+            DirectoryWalker *copy = dw->clone();
+            findFiles(fullPath, extensions, fileStore, copy);
             delete copy;
         }
 
         // If this entry is a file, we'll pass it over to checkAndAddFile
-        if (isFile(fullPath.string()) ) {
-            checkAndAddFile(fullPath,dw->entryStats(),extensions,fileStore);
+        if (isFile(fullPath.string())) {
+            checkAndAddFile(fullPath, dw->entryStats(), extensions, fileStore);
         }
     }
 
@@ -77,10 +76,9 @@ bool SystemFileFinder::findFiles(String8 basePath, Vector<String8>& extensions,
     return true;
 }
 
-void SystemFileFinder::checkAndAddFile(const String8& path, const struct stat* stats,
-                                       Vector<String8>& extensions,
-                                       KeyedVector<String8,time_t>& fileStore)
-{
+void SystemFileFinder::checkAndAddFile(const String8 &path, const struct stat *stats,
+                                       Vector<String8> &extensions,
+                                       KeyedVector<String8, time_t> &fileStore) {
     // Loop over the extensions, checking for a match
     bool done = false;
     String8 ext(path.getPathExtension());
@@ -91,7 +89,7 @@ void SystemFileFinder::checkAndAddFile(const String8& path, const struct stat* s
         // Compare the extensions. If a match is found, add to storage.
         if (ext == ext2) {
             done = true;
-            fileStore.add(path,stats->st_mtime);
+            fileStore.add(path, stats->st_mtime);
         }
     }
 }

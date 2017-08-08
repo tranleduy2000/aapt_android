@@ -3,11 +3,8 @@
 
 class IndentPrinter {
 public:
-    explicit IndentPrinter(FILE* stream, int indentSize=2)
-        : mStream(stream)
-        , mIndentSize(indentSize)
-        , mIndent(0)
-        , mNeedsIndent(true) {
+    explicit IndentPrinter(FILE *stream, int indentSize = 2)
+            : mStream(stream), mIndentSize(indentSize), mIndent(0), mNeedsIndent(true) {
     }
 
     void indent(int amount = 1) {
@@ -17,7 +14,7 @@ public:
         }
     }
 
-    void print(const char* fmt, ...) {
+    void print(const char *fmt, ...) {
         doIndent();
         va_list args;
         va_start(args, fmt);
@@ -25,7 +22,7 @@ public:
         va_end(args);
     }
 
-    void println(const char* fmt, ...) {
+    void println(const char *fmt, ...) {
         doIndent();
         va_list args;
         va_start(args, fmt);
@@ -53,7 +50,7 @@ private:
         }
     }
 
-    FILE* mStream;
+    FILE *mStream;
     const int mIndentSize;
     int mIndent;
     bool mNeedsIndent;

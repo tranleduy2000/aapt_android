@@ -16,14 +16,12 @@
 
 #include "android-base/errors.h"
 
-#include <errno.h>
-
 namespace android {
-namespace base {
+    namespace base {
 
-std::string SystemErrorCodeToString(int error_code) {
-  return strerror(error_code);
-}
+        std::string SystemErrorCodeToString(int error_code) {
+            return strerror(error_code);
+        }
 
-}  // namespace base
+    }  // namespace base
 }  // namespace android

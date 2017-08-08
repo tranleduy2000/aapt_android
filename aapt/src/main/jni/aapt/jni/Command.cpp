@@ -5,39 +5,22 @@
 //
 #include "AaptXml.h"
 #include "ApkBuilder.h"
-#include "Bundle.h"
 #include "Images.h"
-#include "Main.h"
-#include "ResourceFilter.h"
-#include "ResourceTable.h"
 #include "XMLNode.h"
 
-#include <utils/Errors.h>
-#include <utils/KeyedVector.h>
-#include <utils/List.h>
-#include <utils/Log.h>
-#include <utils/SortedVector.h>
-#include <utils/threads.h>
-#include <utils/Vector.h>
-
-#include <errno.h>
-#include <fcntl.h>
-
 #include <iostream>
-#include <string>
 #include <sstream>
 
 using namespace android;
 
 #ifndef AAPT_VERSION
-    #define AAPT_VERSION ""
+#define AAPT_VERSION ""
 #endif
 
 /*
  * Show version info.  All the cool kids do it.
  */
-int doVersion(Bundle* bundle)
-{
+int doVersion(Bundle *bundle) {
     if (bundle->getFileSpecCount() != 0) {
         printf("(ignoring extra arguments)\n");
     }
@@ -52,9 +35,8 @@ int doVersion(Bundle* bundle)
  *
  * Returns NULL on failure.
  */
-ZipFile* openReadOnly(const char* fileName)
-{
-    ZipFile* zip;
+ZipFile *openReadOnly(const char *fileName) {
+    ZipFile *zip;
     status_t result;
 
     zip = new ZipFile;
@@ -66,7 +48,7 @@ ZipFile* openReadOnly(const char* fileName)
             fprintf(stderr, "ERROR: '%s' access denied\n", fileName);
         } else {
             fprintf(stderr, "ERROR: failed opening '%s' as Zip file\n",
-                fileName);
+                    fileName);
         }
         delete zip;
         return NULL;
@@ -81,9 +63,8 @@ ZipFile* openReadOnly(const char* fileName)
  *
  * Returns NULL on failure.
  */
-ZipFile* openReadWrite(const char* fileName, bool okayToCreate)
-{
-    ZipFile* zip = NULL;
+ZipFile *openReadWrite(const char *fileName, bool okayToCreate) {
+    ZipFile *zip = NULL;
     status_t result;
     int flags;
 
@@ -100,7 +81,7 @@ ZipFile* openReadWrite(const char* fileName, bool okayToCreate)
         goto bail;
     }
 
-bail:
+    bail:
     return zip;
 }
 
@@ -108,8 +89,7 @@ bail:
 /*
  * Return a short string describing the compression method.
  */
-const char* compressionName(int method)
-{
+const char *compressionName(int method) {
     if (method == ZipEntry::kCompressStored) {
         return "Stored";
     } else if (method == ZipEntry::kCompressDeflated) {
@@ -122,8 +102,7 @@ const char* compressionName(int method)
 /*
  * Return the percent reduction in size (0% == no compression).
  */
-int calcPercent(long uncompressedLen, long compressedLen)
-{
+int calcPercent(long uncompressedLen, long compressedLen) {
     if (!uncompressedLen) {
         return 0;
     } else {
@@ -138,13 +117,12 @@ int calcPercent(long uncompressedLen, long compressedLen)
  * The verbose listing closely matches the output of the Info-ZIP "unzip"
  * command.
  */
-int doList(Bundle* bundle)
-{
+int doList(Bundle *bundle) {
     int result = 1;
-    ZipFile* zip = NULL;
-    const ZipEntry* entry;
+    ZipFile *zip = NULL;
+    const ZipEntry *entry;
     long totalUncLen, totalCompLen;
-    const char* zipFileName;
+    const char *zipFileName;
 
     if (bundle->getFileSpecCount() != 1) {
         fprintf(stderr, "ERROR: specify zip file name (only)\n");
@@ -162,9 +140,9 @@ int doList(Bundle* bundle)
     if (bundle->getVerbose()) {
         printf("Archive:  %s\n", zipFileName);
         printf(
-            " Length   Method    Size  Ratio   Offset      Date  Time  CRC-32    Name\n");
+                " Length   Method    Size  Ratio   Offset      Date  Time  CRC-32    Name\n");
         printf(
-            "--------  ------  ------- -----  -------      ----  ----  ------    ----\n");
+                "--------  ------  ------- -----  -------      ----  ----  ------    ----\n");
     }
 
     totalUncLen = totalCompLen = 0;
@@ -178,18 +156,18 @@ int doList(Bundle* bundle)
 
             when = entry->getModWhen();
             strftime(dateBuf, sizeof(dateBuf), "%m-%d-%y %H:%M",
-                localtime(&when));
+                     localtime(&when));
 
             printf("%8ld  %-7.7s %7ld %3d%%  %8zd  %s  %08lx  %s\n",
-                (long) entry->getUncompressedLen(),
-                compressionName(entry->getCompressionMethod()),
-                (long) entry->getCompressedLen(),
-                calcPercent(entry->getUncompressedLen(),
-                            entry->getCompressedLen()),
-                (size_t) entry->getLFHOffset(),
-                dateBuf,
-                entry->getCRC32(),
-                entry->getFileName());
+                   (long) entry->getUncompressedLen(),
+                   compressionName(entry->getCompressionMethod()),
+                   (long) entry->getCompressedLen(),
+                   calcPercent(entry->getUncompressedLen(),
+                               entry->getCompressedLen()),
+                   (size_t) entry->getLFHOffset(),
+                   dateBuf,
+                   entry->getCRC32(),
+                   entry->getFileName());
         } else {
             printf("%s\n", entry->getFileName());
         }
@@ -200,12 +178,12 @@ int doList(Bundle* bundle)
 
     if (bundle->getVerbose()) {
         printf(
-        "--------          -------  ---                            -------\n");
+                "--------          -------  ---                            -------\n");
         printf("%8ld          %7ld  %2d%%                            %d files\n",
-            totalUncLen,
-            totalCompLen,
-            calcPercent(totalUncLen, totalCompLen),
-            zip->getNumEntries());
+               totalUncLen,
+               totalCompLen,
+               calcPercent(totalUncLen, totalCompLen),
+               zip->getNumEntries());
     }
 
     if (bundle->getAndroidList()) {
@@ -220,13 +198,13 @@ int doList(Bundle* bundle)
 #else
         static const bool kHaveAndroidOs = false;
 #endif
-        const ResTable& res = assets.getResources(false);
+        const ResTable &res = assets.getResources(false);
         if (!kHaveAndroidOs) {
             printf("\nResource table:\n");
             res.print(false);
         }
 
-        Asset* manifestAsset = assets.openNonAsset("AndroidManifest.xml",
+        Asset *manifestAsset = assets.openNonAsset("AndroidManifest.xml",
                                                    Asset::ACCESS_BUFFER);
         if (manifestAsset == NULL) {
             printf("\nNo AndroidManifest.xml found.\n");
@@ -242,14 +220,14 @@ int doList(Bundle* bundle)
 
     result = 0;
 
-bail:
+    bail:
     delete zip;
     return result;
 }
 
-static void printResolvedResourceAttribute(const ResTable& resTable, const ResXMLTree& tree,
-        uint32_t attrRes, const String8& attrLabel, String8* outError)
-{
+static void printResolvedResourceAttribute(const ResTable &resTable, const ResXMLTree &tree,
+                                           uint32_t attrRes, const String8 &attrLabel,
+                                           String8 *outError) {
     Res_value value;
     AaptXml::getResolvedResourceAttribute(resTable, tree, attrRes, &value, outError);
     if (*outError != "") {
@@ -259,12 +237,12 @@ static void printResolvedResourceAttribute(const ResTable& resTable, const ResXM
     if (value.dataType == Res_value::TYPE_STRING) {
         String8 result = AaptXml::getResolvedAttribute(resTable, tree, attrRes, outError);
         printf("%s='%s'", attrLabel.string(),
-                ResTable::normalizeForOutput(result.string()).string());
+               ResTable::normalizeForOutput(result.string()).string());
     } else if (Res_value::TYPE_FIRST_INT <= value.dataType &&
-            value.dataType <= Res_value::TYPE_LAST_INT) {
+               value.dataType <= Res_value::TYPE_LAST_INT) {
         printf("%s='%d'", attrLabel.string(), value.data);
     } else {
-        printf("%s='0x%x'", attrLabel.string(), (int)value.data);
+        printf("%s='0x%x'", attrLabel.string(), (int) value.data);
     }
 }
 
@@ -325,13 +303,13 @@ String8 getComponentName(String8 &pkgName, String8 &componentName) {
     return retStr;
 }
 
-static void printCompatibleScreens(ResXMLTree& tree, String8* outError) {
+static void printCompatibleScreens(ResXMLTree &tree, String8 *outError) {
     size_t len;
     ResXMLTree::event_code_t code;
     int depth = 0;
     bool first = true;
     printf("compatible-screens:");
-    while ((code=tree.next()) != ResXMLTree::END_DOCUMENT && code != ResXMLTree::BAD_DOCUMENT) {
+    while ((code = tree.next()) != ResXMLTree::END_DOCUMENT && code != ResXMLTree::BAD_DOCUMENT) {
         if (code == ResXMLTree::END_TAG) {
             depth--;
             if (depth < 0) {
@@ -343,7 +321,7 @@ static void printCompatibleScreens(ResXMLTree& tree, String8* outError) {
             continue;
         }
         depth++;
-        const char16_t* ctag16 = tree.getElementName(&len);
+        const char16_t *ctag16 = tree.getElementName(&len);
         if (ctag16 == NULL) {
             *outError = "failed to get XML element name (bad string pool)";
             return;
@@ -351,9 +329,9 @@ static void printCompatibleScreens(ResXMLTree& tree, String8* outError) {
         String8 tag(ctag16);
         if (tag == "screen") {
             int32_t screenSize = AaptXml::getIntegerAttribute(tree,
-                    SCREEN_SIZE_ATTR);
+                                                              SCREEN_SIZE_ATTR);
             int32_t screenDensity = AaptXml::getIntegerAttribute(tree,
-                    SCREEN_DENSITY_ATTR);
+                                                                 SCREEN_DENSITY_ATTR);
             if (screenSize > 0 && screenDensity > 0) {
                 if (!first) {
                     printf(",");
@@ -366,16 +344,17 @@ static void printCompatibleScreens(ResXMLTree& tree, String8* outError) {
     printf("\n");
 }
 
-static void printUsesPermission(const String8& name, bool optional=false, int maxSdkVersion=-1) {
+static void
+printUsesPermission(const String8 &name, bool optional = false, int maxSdkVersion = -1) {
     printf("uses-permission: name='%s'", ResTable::normalizeForOutput(name.string()).string());
     if (maxSdkVersion != -1) {
-         printf(" maxSdkVersion='%d'", maxSdkVersion);
+        printf(" maxSdkVersion='%d'", maxSdkVersion);
     }
     printf("\n");
 
     if (optional) {
         printf("optional-permission: name='%s'",
-                ResTable::normalizeForOutput(name.string()).string());
+               ResTable::normalizeForOutput(name.string()).string());
         if (maxSdkVersion != -1) {
             printf(" maxSdkVersion='%d'", maxSdkVersion);
         }
@@ -383,7 +362,7 @@ static void printUsesPermission(const String8& name, bool optional=false, int ma
     }
 }
 
-static void printUsesPermissionSdk23(const String8& name, int maxSdkVersion=-1) {
+static void printUsesPermissionSdk23(const String8 &name, int maxSdkVersion = -1) {
     printf("uses-permission-sdk-23: ");
 
     printf("name='%s'", ResTable::normalizeForOutput(name.string()).string());
@@ -393,16 +372,15 @@ static void printUsesPermissionSdk23(const String8& name, int maxSdkVersion=-1) 
     printf("\n");
 }
 
-static void printUsesImpliedPermission(const String8& name, const String8& reason) {
+static void printUsesImpliedPermission(const String8 &name, const String8 &reason) {
     printf("uses-implied-permission: name='%s' reason='%s'\n",
-            ResTable::normalizeForOutput(name.string()).string(),
-            ResTable::normalizeForOutput(reason.string()).string());
+           ResTable::normalizeForOutput(name.string()).string(),
+           ResTable::normalizeForOutput(reason.string()).string());
 }
 
-Vector<String8> getNfcAidCategories(AssetManager& assets, const String8& xmlPath, bool offHost,
-        String8 *outError = NULL)
-{
-    Asset* aidAsset = assets.openNonAsset(xmlPath, Asset::ACCESS_BUFFER);
+Vector<String8> getNfcAidCategories(AssetManager &assets, const String8 &xmlPath, bool offHost,
+                                    String8 *outError = NULL) {
+    Asset *aidAsset = assets.openNonAsset(xmlPath, Asset::ACCESS_BUFFER);
     if (aidAsset == NULL) {
         if (outError != NULL) *outError = "xml resource does not exist";
         return Vector<String8>();
@@ -420,10 +398,10 @@ Vector<String8> getNfcAidCategories(AssetManager& assets, const String8& xmlPath
     size_t len;
     int depth = 0;
     ResXMLTree::event_code_t code;
-    while ((code=tree.next()) != ResXMLTree::END_DOCUMENT && code != ResXMLTree::BAD_DOCUMENT) {
+    while ((code = tree.next()) != ResXMLTree::END_DOCUMENT && code != ResXMLTree::BAD_DOCUMENT) {
         if (code == ResXMLTree::END_TAG) {
             depth--;
-            const char16_t* ctag16 = tree.getElementName(&len);
+            const char16_t *ctag16 = tree.getElementName(&len);
             if (ctag16 == NULL) {
                 *outError = "failed to get XML element name (bad string pool)";
                 return Vector<String8>();
@@ -436,7 +414,7 @@ Vector<String8> getNfcAidCategories(AssetManager& assets, const String8& xmlPath
 
         } else if (code == ResXMLTree::START_TAG) {
             depth++;
-            const char16_t* ctag16 = tree.getElementName(&len);
+            const char16_t *ctag16 = tree.getElementName(&len);
             if (ctag16 == NULL) {
                 *outError = "failed to get XML element name (bad string pool)";
                 return Vector<String8>();
@@ -464,7 +442,7 @@ Vector<String8> getNfcAidCategories(AssetManager& assets, const String8& xmlPath
     return categories;
 }
 
-static void printComponentPresence(const char* componentName) {
+static void printComponentPresence(const char *componentName) {
     printf("provides-component:'%s'\n", componentName);
 }
 
@@ -474,7 +452,8 @@ static void printComponentPresence(const char* componentName) {
  */
 struct ImpliedFeature {
     ImpliedFeature() : impliedBySdk23(false) {}
-    ImpliedFeature(const String8& n, bool sdk23) : name(n), impliedBySdk23(sdk23) {}
+
+    ImpliedFeature(const String8 &n, bool sdk23) : name(n), impliedBySdk23(sdk23) {}
 
     /**
      * Name of the implied feature.
@@ -494,6 +473,7 @@ struct ImpliedFeature {
 
 struct Feature {
     Feature() : required(false), version(-1) {}
+
     Feature(bool required, int32_t version = -1) : required(required), version(version) {}
 
     /**
@@ -529,8 +509,8 @@ struct FeatureGroup {
     int openGLESVersion;
 };
 
-static bool hasFeature(const char* name, const FeatureGroup& grp,
-                       const KeyedVector<String8, ImpliedFeature>& implied) {
+static bool hasFeature(const char *name, const FeatureGroup &grp,
+                       const KeyedVector<String8, ImpliedFeature> &implied) {
     String8 name8(name);
     ssize_t idx = grp.features.indexOfKey(name8);
     if (idx < 0) {
@@ -539,15 +519,15 @@ static bool hasFeature(const char* name, const FeatureGroup& grp,
     return idx >= 0;
 }
 
-static void addImpliedFeature(KeyedVector<String8, ImpliedFeature>* impliedFeatures,
-                              const char* name, const String8& reason, bool sdk23) {
+static void addImpliedFeature(KeyedVector<String8, ImpliedFeature> *impliedFeatures,
+                              const char *name, const String8 &reason, bool sdk23) {
     String8 name8(name);
     ssize_t idx = impliedFeatures->indexOfKey(name8);
     if (idx < 0) {
         idx = impliedFeatures->add(name8, ImpliedFeature(name8, sdk23));
     }
 
-    ImpliedFeature* feature = &impliedFeatures->editValueAt(idx);
+    ImpliedFeature *feature = &impliedFeatures->editValueAt(idx);
 
     // A non-sdk 23 implied feature takes precedence.
     if (feature->impliedBySdk23 && !sdk23) {
@@ -556,8 +536,8 @@ static void addImpliedFeature(KeyedVector<String8, ImpliedFeature>* impliedFeatu
     feature->reasons.add(reason);
 }
 
-static void printFeatureGroupImpl(const FeatureGroup& grp,
-                                  const KeyedVector<String8, ImpliedFeature>* impliedFeatures) {
+static void printFeatureGroupImpl(const FeatureGroup &grp,
+                                  const KeyedVector<String8, ImpliedFeature> *impliedFeatures) {
     printf("feature-group: label='%s'\n", grp.label.string());
 
     if (grp.openGLESVersion > 0) {
@@ -566,13 +546,13 @@ static void printFeatureGroupImpl(const FeatureGroup& grp,
 
     const size_t numFeatures = grp.features.size();
     for (size_t i = 0; i < numFeatures; i++) {
-        const Feature& feature = grp.features[i];
+        const Feature &feature = grp.features[i];
         const bool required = feature.required;
         const int32_t version = feature.version;
 
-        const String8& featureName = grp.features.keyAt(i);
+        const String8 &featureName = grp.features.keyAt(i);
         printf("  uses-feature%s: name='%s'", (required ? "" : "-not-required"),
-                ResTable::normalizeForOutput(featureName.string()).string());
+               ResTable::normalizeForOutput(featureName.string()).string());
 
         if (version > 0) {
             printf(" version='%d'", version);
@@ -581,9 +561,9 @@ static void printFeatureGroupImpl(const FeatureGroup& grp,
     }
 
     const size_t numImpliedFeatures =
-        (impliedFeatures != NULL) ? impliedFeatures->size() : 0;
+            (impliedFeatures != NULL) ? impliedFeatures->size() : 0;
     for (size_t i = 0; i < numImpliedFeatures; i++) {
-        const ImpliedFeature& impliedFeature = impliedFeatures->valueAt(i);
+        const ImpliedFeature &impliedFeature = impliedFeatures->valueAt(i);
         if (grp.features.indexOfKey(impliedFeature.name) >= 0) {
             // The feature is explicitly set, no need to use implied
             // definition.
@@ -591,8 +571,8 @@ static void printFeatureGroupImpl(const FeatureGroup& grp,
         }
 
         String8 printableFeatureName(ResTable::normalizeForOutput(
-                    impliedFeature.name.string()));
-        const char* sdk23Suffix = impliedFeature.impliedBySdk23 ? "-sdk-23" : "";
+                impliedFeature.name.string()));
+        const char *sdk23Suffix = impliedFeature.impliedBySdk23 ? "-sdk-23" : "";
 
         printf("  uses-feature%s: name='%s'\n", sdk23Suffix, printableFeatureName.string());
         printf("  uses-implied-feature%s: name='%s' reason='", sdk23Suffix,
@@ -610,32 +590,32 @@ static void printFeatureGroupImpl(const FeatureGroup& grp,
     }
 }
 
-static void printFeatureGroup(const FeatureGroup& grp) {
+static void printFeatureGroup(const FeatureGroup &grp) {
     printFeatureGroupImpl(grp, NULL);
 }
 
-static void printDefaultFeatureGroup(const FeatureGroup& grp,
-                                     const KeyedVector<String8, ImpliedFeature>& impliedFeatures) {
+static void printDefaultFeatureGroup(const FeatureGroup &grp,
+                                     const KeyedVector<String8, ImpliedFeature> &impliedFeatures) {
     printFeatureGroupImpl(grp, &impliedFeatures);
 }
 
-static void addParentFeatures(FeatureGroup* grp, const String8& name) {
+static void addParentFeatures(FeatureGroup *grp, const String8 &name) {
     if (name == "android.hardware.camera.autofocus" ||
-            name == "android.hardware.camera.flash") {
+        name == "android.hardware.camera.flash") {
         grp->features.add(String8("android.hardware.camera"), Feature(true));
     } else if (name == "android.hardware.location.gps" ||
-            name == "android.hardware.location.network") {
+               name == "android.hardware.location.network") {
         grp->features.add(String8("android.hardware.location"), Feature(true));
     } else if (name == "android.hardware.faketouch.multitouch") {
         grp->features.add(String8("android.hardware.faketouch"), Feature(true));
     } else if (name == "android.hardware.faketouch.multitouch.distinct" ||
-            name == "android.hardware.faketouch.multitouch.jazzhands") {
+               name == "android.hardware.faketouch.multitouch.jazzhands") {
         grp->features.add(String8("android.hardware.faketouch.multitouch"), Feature(true));
         grp->features.add(String8("android.hardware.faketouch"), Feature(true));
     } else if (name == "android.hardware.touchscreen.multitouch") {
         grp->features.add(String8("android.hardware.touchscreen"), Feature(true));
     } else if (name == "android.hardware.touchscreen.multitouch.distinct" ||
-            name == "android.hardware.touchscreen.multitouch.jazzhands") {
+               name == "android.hardware.touchscreen.multitouch.jazzhands") {
         grp->features.add(String8("android.hardware.touchscreen.multitouch"), Feature(true));
         grp->features.add(String8("android.hardware.touchscreen"), Feature(true));
     } else if (name == "android.hardware.opengles.aep") {
@@ -646,8 +626,8 @@ static void addParentFeatures(FeatureGroup* grp, const String8& name) {
     }
 }
 
-static void addImpliedFeaturesForPermission(const int targetSdk, const String8& name,
-                                            KeyedVector<String8, ImpliedFeature>* impliedFeatures,
+static void addImpliedFeaturesForPermission(const int targetSdk, const String8 &name,
+                                            KeyedVector<String8, ImpliedFeature> *impliedFeatures,
                                             bool impliedBySdk23Permission) {
     if (name == "android.permission.CAMERA") {
         addImpliedFeature(impliedFeatures, "android.hardware.camera",
@@ -663,8 +643,8 @@ static void addImpliedFeaturesForPermission(const int targetSdk, const String8& 
                               impliedBySdk23Permission);
         }
         addImpliedFeature(impliedFeatures, "android.hardware.location",
-                String8::format("requested %s permission", name.string()),
-                impliedBySdk23Permission);
+                          String8::format("requested %s permission", name.string()),
+                          impliedBySdk23Permission);
     } else if (name == "android.permission.ACCESS_COARSE_LOCATION") {
         if (targetSdk < SDK_LOLLIPOP) {
             addImpliedFeature(impliedFeatures, "android.hardware.location.network",
@@ -724,8 +704,7 @@ static void addImpliedFeaturesForPermission(const int targetSdk, const String8& 
  * Handle the "dump" command, to extract select data from an archive.
  */
 extern char CONSOLE_DATA[2925]; // see EOF
-int doDump(Bundle* bundle)
-{
+int doDump(Bundle *bundle) {
     status_t result = UNKNOWN_ERROR;
 
     if (bundle->getFileSpecCount() < 1) {
@@ -738,8 +717,8 @@ int doDump(Bundle* bundle)
         return 1;
     }
 
-    const char* option = bundle->getFileSpecEntry(0);
-    const char* filename = bundle->getFileSpecEntry(1);
+    const char *option = bundle->getFileSpecEntry(0);
+    const char *filename = bundle->getFileSpecEntry(1);
 
     AssetManager assets;
     int32_t assetsCookie;
@@ -768,7 +747,7 @@ int doDump(Bundle* bundle)
     config.screenLayout |= ResTable_config::SCREENSIZE_NORMAL;
     assets.setConfiguration(config);
 
-    const ResTable& res = assets.getResources(false);
+    const ResTable &res = assets.getResources(false);
     if (res.getError() != NO_ERROR) {
         fprintf(stderr, "ERROR: dump failed because the resource table is invalid/corrupt.\n");
         return 1;
@@ -779,9 +758,9 @@ int doDump(Bundle* bundle)
 
     // The dynamicRefTable can be null if there are no resources for this asset cookie.
     // This fine.
-    const DynamicRefTable* dynamicRefTable = res.getDynamicRefTableForCookie(assetsCookie);
+    const DynamicRefTable *dynamicRefTable = res.getDynamicRefTableForCookie(assetsCookie);
 
-    Asset* asset = NULL;
+    Asset *asset = NULL;
 
     if (strcmp("resources", option) == 0) {
 #ifndef __ANDROID__
@@ -789,7 +768,7 @@ int doDump(Bundle* bundle)
 #endif
 
     } else if (strcmp("strings", option) == 0) {
-        const ResStringPool* pool = res.getTableStringBlock(0);
+        const ResStringPool *pool = res.getTableStringBlock(0);
         printStringPool(pool);
 
     } else if (strcmp("xmltree", option) == 0) {
@@ -798,8 +777,8 @@ int doDump(Bundle* bundle)
             goto bail;
         }
 
-        for (int i=2; i<bundle->getFileSpecCount(); i++) {
-            const char* resname = bundle->getFileSpecEntry(i);
+        for (int i = 2; i < bundle->getFileSpecCount(); i++) {
+            const char *resname = bundle->getFileSpecEntry(i);
             ResXMLTree tree(dynamicRefTable);
             asset = assets.openNonAsset(assetsCookie, resname, Asset::ACCESS_BUFFER);
             if (asset == NULL) {
@@ -825,8 +804,8 @@ int doDump(Bundle* bundle)
             goto bail;
         }
 
-        for (int i=2; i<bundle->getFileSpecCount(); i++) {
-            const char* resname = bundle->getFileSpecEntry(i);
+        for (int i = 2; i < bundle->getFileSpecCount(); i++) {
+            const char *resname = bundle->getFileSpecEntry(i);
             asset = assets.openNonAsset(assetsCookie, resname, Asset::ACCESS_BUFFER);
             if (asset == NULL) {
                 fprintf(stderr, "ERROR: dump failed because resource %s found\n", resname);
@@ -863,8 +842,8 @@ int doDump(Bundle* bundle)
             size_t len;
             ResXMLTree::event_code_t code;
             int depth = 0;
-            while ((code=tree.next()) != ResXMLTree::END_DOCUMENT &&
-                    code != ResXMLTree::BAD_DOCUMENT) {
+            while ((code = tree.next()) != ResXMLTree::END_DOCUMENT &&
+                   code != ResXMLTree::BAD_DOCUMENT) {
                 if (code == ResXMLTree::END_TAG) {
                     depth--;
                     continue;
@@ -873,7 +852,7 @@ int doDump(Bundle* bundle)
                     continue;
                 }
                 depth++;
-                const char16_t* ctag16 = tree.getElementName(&len);
+                const char16_t *ctag16 = tree.getElementName(&len);
                 if (ctag16 == NULL) {
                     fprintf(stderr, "ERROR: failed to get XML element name (bad string pool)\n");
                     goto bail;
@@ -901,7 +880,7 @@ int doDump(Bundle* bundle)
                             goto bail;
                         }
                         printf("permission: %s\n",
-                                ResTable::normalizeForOutput(name.string()).string());
+                               ResTable::normalizeForOutput(name.string()).string());
                     } else if (tag == "uses-permission") {
                         String8 error;
                         String8 name = AaptXml::getAttribute(tree, NAME_ATTR, &error);
@@ -915,8 +894,10 @@ int doDump(Bundle* bundle)
                             goto bail;
                         }
                         printUsesPermission(name,
-                                AaptXml::getIntegerAttribute(tree, REQUIRED_ATTR, 1) == 0,
-                                AaptXml::getIntegerAttribute(tree, MAX_SDK_VERSION_ATTR));
+                                            AaptXml::getIntegerAttribute(tree, REQUIRED_ATTR, 1) ==
+                                            0,
+                                            AaptXml::getIntegerAttribute(tree,
+                                                                         MAX_SDK_VERSION_ATTR));
                     } else if (tag == "uses-permission-sdk-23" || tag == "uses-permission-sdk-m") {
                         String8 error;
                         String8 name = AaptXml::getAttribute(tree, NAME_ATTR, &error);
@@ -944,7 +925,7 @@ int doDump(Bundle* bundle)
             res.getConfigurations(&configs);
             SortedVector<int> densities;
             const size_t NC = configs.size();
-            for (size_t i=0; i<NC; i++) {
+            for (size_t i = 0; i < NC; i++) {
                 int dens = configs[i].density;
                 if (dens == 0) {
                     dens = 160;
@@ -1073,15 +1054,15 @@ int doDump(Bundle* bundle)
             Vector<FeatureGroup> featureGroups;
             KeyedVector<String8, ImpliedFeature> impliedFeatures;
 
-            while ((code=tree.next()) != ResXMLTree::END_DOCUMENT &&
-                    code != ResXMLTree::BAD_DOCUMENT) {
+            while ((code = tree.next()) != ResXMLTree::END_DOCUMENT &&
+                   code != ResXMLTree::BAD_DOCUMENT) {
                 if (code == ResXMLTree::END_TAG) {
                     depth--;
                     if (depth < 2) {
                         if (withinSupportsInput && !supportedInput.isEmpty()) {
                             printf("supports-input: '");
                             const size_t N = supportedInput.size();
-                            for (size_t i=0; i<N; i++) {
+                            for (size_t i = 0; i < N; i++) {
                                 printf("%s", ResTable::normalizeForOutput(
                                         supportedInput[i].string()).string());
                                 if (i != N - 1) {
@@ -1102,27 +1083,27 @@ int doDump(Bundle* bundle)
                                 printf("launchable-activity:");
                                 if (aName.length() > 0) {
                                     printf(" name='%s' ",
-                                            ResTable::normalizeForOutput(aName.string()).string());
+                                           ResTable::normalizeForOutput(aName.string()).string());
                                 }
                                 printf(" label='%s' icon='%s'\n",
                                        ResTable::normalizeForOutput(activityLabel.string())
-                                                .string(),
+                                               .string(),
                                        ResTable::normalizeForOutput(activityIcon.string())
-                                                .string());
+                                               .string());
                             }
                             if (isLeanbackLauncherActivity) {
                                 printf("leanback-launchable-activity:");
                                 if (aName.length() > 0) {
                                     printf(" name='%s' ",
-                                            ResTable::normalizeForOutput(aName.string()).string());
+                                           ResTable::normalizeForOutput(aName.string()).string());
                                 }
                                 printf(" label='%s' icon='%s' banner='%s'\n",
                                        ResTable::normalizeForOutput(activityLabel.string())
-                                                .string(),
+                                               .string(),
                                        ResTable::normalizeForOutput(activityIcon.string())
-                                                .string(),
+                                               .string(),
                                        ResTable::normalizeForOutput(activityBanner.string())
-                                                .string());
+                                               .string());
                             }
                         }
                         if (!hasIntentFilter) {
@@ -1131,10 +1112,12 @@ int doDump(Bundle* bundle)
                             hasOtherServices |= withinService;
                         } else {
                             if (withinService) {
-                                hasPaymentService |= (actHostApduService && hasMetaHostPaymentCategory &&
-                                        hasBindNfcServicePermission);
-                                hasPaymentService |= (actOffHostApduService && hasMetaOffHostPaymentCategory &&
-                                        hasBindNfcServicePermission);
+                                hasPaymentService |= (actHostApduService &&
+                                                      hasMetaHostPaymentCategory &&
+                                                      hasBindNfcServicePermission);
+                                hasPaymentService |= (actOffHostApduService &&
+                                                      hasMetaOffHostPaymentCategory &&
+                                                      hasBindNfcServicePermission);
                             }
                         }
                         withinActivity = false;
@@ -1155,23 +1138,24 @@ int doDump(Bundle* bundle)
                             } else if (withinReceiver) {
                                 hasWidgetReceivers |= actWidgetReceivers;
                                 hasDeviceAdminReceiver |= (actDeviceAdminEnabled &&
-                                        hasBindDeviceAdminPermission);
+                                                           hasBindDeviceAdminPermission);
                                 hasOtherReceivers |=
                                         (!actWidgetReceivers && !actDeviceAdminEnabled);
                             } else if (withinService) {
                                 hasImeService |= actImeService;
                                 hasWallpaperService |= actWallpaperService;
                                 hasAccessibilityService |= (actAccessibilityService &&
-                                        hasBindAccessibilityServicePermission);
+                                                            hasBindAccessibilityServicePermission);
                                 hasPrintService |=
                                         (actPrintService && hasBindPrintServicePermission);
                                 hasNotificationListenerService |= actNotificationListenerService &&
-                                        hasBindNotificationListenerServicePermission;
+                                                                  hasBindNotificationListenerServicePermission;
                                 hasDreamService |= actDreamService && hasBindDreamServicePermission;
                                 hasOtherServices |= (!actImeService && !actWallpaperService &&
-                                        !actAccessibilityService && !actPrintService &&
-                                        !actHostApduService && !actOffHostApduService &&
-                                        !actNotificationListenerService);
+                                                     !actAccessibilityService && !actPrintService &&
+                                                     !actHostApduService &&
+                                                     !actOffHostApduService &&
+                                                     !actNotificationListenerService);
                             } else if (withinProvider) {
                                 hasDocumentsProvider |=
                                         actDocumentsProvider && hasRequiredSafAttributes;
@@ -1186,7 +1170,7 @@ int doDump(Bundle* bundle)
                 }
                 depth++;
 
-                const char16_t* ctag16 = tree.getElementName(&len);
+                const char16_t *ctag16 = tree.getElementName(&len);
                 if (ctag16 == NULL) {
                     fprintf(stderr, "ERROR: failed to get XML element name (bad string pool)\n");
                     goto bail;
@@ -1200,9 +1184,9 @@ int doDump(Bundle* bundle)
                     }
                     pkg = AaptXml::getAttribute(tree, NULL, "package", NULL);
                     printf("package: name='%s' ",
-                            ResTable::normalizeForOutput(pkg.string()).string());
+                           ResTable::normalizeForOutput(pkg.string()).string());
                     int32_t versionCode = AaptXml::getIntegerAttribute(tree, VERSION_CODE_ATTR,
-                            &error);
+                                                                       &error);
                     if (error != "") {
                         fprintf(stderr, "ERROR getting 'android:versionCode' attribute: %s\n",
                                 error.string());
@@ -1214,28 +1198,29 @@ int doDump(Bundle* bundle)
                         printf("versionCode='' ");
                     }
                     String8 versionName = AaptXml::getResolvedAttribute(res, tree,
-                            VERSION_NAME_ATTR, &error);
+                                                                        VERSION_NAME_ATTR, &error);
                     if (error != "") {
                         fprintf(stderr, "ERROR getting 'android:versionName' attribute: %s\n",
                                 error.string());
                         goto bail;
                     }
                     printf("versionName='%s'",
-                            ResTable::normalizeForOutput(versionName.string()).string());
+                           ResTable::normalizeForOutput(versionName.string()).string());
 
                     String8 splitName = AaptXml::getAttribute(tree, NULL, "split");
                     if (!splitName.isEmpty()) {
                         printf(" split='%s'", ResTable::normalizeForOutput(
-                                    splitName.string()).string());
+                                splitName.string()).string());
                     }
 
                     String8 platformVersionName = AaptXml::getAttribute(tree, NULL,
-                            "platformBuildVersionName");
+                                                                        "platformBuildVersionName");
                     printf(" platformBuildVersionName='%s'", platformVersionName.string());
                     printf("\n");
 
                     int32_t installLocation = AaptXml::getResolvedIntegerAttribute(res, tree,
-                            INSTALL_LOCATION_ATTR, &error);
+                                                                                   INSTALL_LOCATION_ATTR,
+                                                                                   &error);
                     if (error != "") {
                         fprintf(stderr, "ERROR getting 'android:installLocation' attribute: %s\n",
                                 error.string());
@@ -1267,16 +1252,16 @@ int doDump(Bundle* bundle)
 
                         String8 label;
                         const size_t NL = locales.size();
-                        for (size_t i=0; i<NL; i++) {
-                            const char* localeStr =  locales[i].string();
+                        for (size_t i = 0; i < NL; i++) {
+                            const char *localeStr = locales[i].string();
                             assets.setLocale(localeStr != NULL ? localeStr : "");
                             String8 llabel = AaptXml::getResolvedAttribute(res, tree, LABEL_ATTR,
-                                    &error);
+                                                                           &error);
                             if (llabel != "") {
                                 if (localeStr == NULL || strlen(localeStr) == 0) {
                                     label = llabel;
                                     printf("application-label:'%s'\n",
-                                            ResTable::normalizeForOutput(llabel.string()).string());
+                                           ResTable::normalizeForOutput(llabel.string()).string());
                                 } else {
                                     if (label == "") {
                                         label = llabel;
@@ -1289,14 +1274,14 @@ int doDump(Bundle* bundle)
 
                         ResTable_config tmpConfig = config;
                         const size_t ND = densities.size();
-                        for (size_t i=0; i<ND; i++) {
+                        for (size_t i = 0; i < ND; i++) {
                             tmpConfig.density = densities[i];
                             assets.setConfiguration(tmpConfig);
                             String8 icon = AaptXml::getResolvedAttribute(res, tree, ICON_ATTR,
-                                    &error);
+                                                                         &error);
                             if (icon != "") {
                                 printf("application-icon-%d:'%s'\n", densities[i],
-                                        ResTable::normalizeForOutput(icon.string()).string());
+                                       ResTable::normalizeForOutput(icon.string()).string());
                             }
                         }
                         assets.setConfiguration(config);
@@ -1308,7 +1293,7 @@ int doDump(Bundle* bundle)
                             goto bail;
                         }
                         int32_t testOnly = AaptXml::getIntegerAttribute(tree, TEST_ONLY_ATTR, 0,
-                                &error);
+                                                                        &error);
                         if (error != "") {
                             fprintf(stderr, "ERROR getting 'android:testOnly' attribute: %s\n",
                                     error.string());
@@ -1323,7 +1308,7 @@ int doDump(Bundle* bundle)
                             goto bail;
                         }
                         printf("application: label='%s' ",
-                                ResTable::normalizeForOutput(label.string()).string());
+                               ResTable::normalizeForOutput(label.string()).string());
                         printf("icon='%s'", ResTable::normalizeForOutput(icon.string()).string());
                         if (banner != "") {
                             printf(" banner='%s'",
@@ -1335,7 +1320,8 @@ int doDump(Bundle* bundle)
                         }
 
                         int32_t isGame = AaptXml::getResolvedIntegerAttribute(res, tree,
-                                ISGAME_ATTR, 0, &error);
+                                                                              ISGAME_ATTR, 0,
+                                                                              &error);
                         if (error != "") {
                             fprintf(stderr, "ERROR getting 'android:isGame' attribute: %s\n",
                                     error.string());
@@ -1346,7 +1332,8 @@ int doDump(Bundle* bundle)
                         }
 
                         int32_t debuggable = AaptXml::getResolvedIntegerAttribute(res, tree,
-                                DEBUGGABLE_ATTR, 0, &error);
+                                                                                  DEBUGGABLE_ATTR,
+                                                                                  0, &error);
                         if (error != "") {
                             fprintf(stderr, "ERROR getting 'android:debuggable' attribute: %s\n",
                                     error.string());
@@ -1359,12 +1346,12 @@ int doDump(Bundle* bundle)
                         // We must search by name because the multiArch flag hasn't been API
                         // frozen yet.
                         int32_t multiArchIndex = tree.indexOfAttribute(RESOURCES_ANDROID_NAMESPACE,
-                                "multiArch");
+                                                                       "multiArch");
                         if (multiArchIndex >= 0) {
                             Res_value value;
                             if (tree.getAttributeValue(multiArchIndex, &value) != NO_ERROR) {
                                 if (value.dataType >= Res_value::TYPE_FIRST_INT &&
-                                        value.dataType <= Res_value::TYPE_LAST_INT) {
+                                    value.dataType <= Res_value::TYPE_LAST_INT) {
                                     hasMultiArch = value.data;
                                 }
                             }
@@ -1375,7 +1362,8 @@ int doDump(Bundle* bundle)
                         if (error != "") {
                             error = "";
                             String8 name = AaptXml::getResolvedAttribute(res, tree,
-                                    MIN_SDK_VERSION_ATTR, &error);
+                                                                         MIN_SDK_VERSION_ATTR,
+                                                                         &error);
                             if (error != "") {
                                 fprintf(stderr,
                                         "ERROR getting 'android:minSdkVersion' attribute: %s\n",
@@ -1384,7 +1372,7 @@ int doDump(Bundle* bundle)
                             }
                             if (name == "Donut") targetSdk = 4;
                             printf("sdkVersion:'%s'\n",
-                                    ResTable::normalizeForOutput(name.string()).string());
+                                   ResTable::normalizeForOutput(name.string()).string());
                         } else if (code != -1) {
                             targetSdk = code;
                             printf("sdkVersion:'%d'\n", code);
@@ -1397,7 +1385,8 @@ int doDump(Bundle* bundle)
                         if (error != "") {
                             error = "";
                             String8 name = AaptXml::getResolvedAttribute(res, tree,
-                                    TARGET_SDK_VERSION_ATTR, &error);
+                                                                         TARGET_SDK_VERSION_ATTR,
+                                                                         &error);
                             if (error != "") {
                                 fprintf(stderr,
                                         "ERROR getting 'android:targetSdkVersion' attribute: %s\n",
@@ -1406,7 +1395,7 @@ int doDump(Bundle* bundle)
                             }
                             if (name == "Donut" && targetSdk < 4) targetSdk = 4;
                             printf("targetSdkVersion:'%s'\n",
-                                    ResTable::normalizeForOutput(name.string()).string());
+                                   ResTable::normalizeForOutput(name.string()).string());
                         } else if (code != -1) {
                             if (targetSdk < code) {
                                 targetSdk = code;
@@ -1415,15 +1404,20 @@ int doDump(Bundle* bundle)
                         }
                     } else if (tag == "uses-configuration") {
                         int32_t reqTouchScreen = AaptXml::getIntegerAttribute(tree,
-                                REQ_TOUCH_SCREEN_ATTR, 0);
+                                                                              REQ_TOUCH_SCREEN_ATTR,
+                                                                              0);
                         int32_t reqKeyboardType = AaptXml::getIntegerAttribute(tree,
-                                REQ_KEYBOARD_TYPE_ATTR, 0);
+                                                                               REQ_KEYBOARD_TYPE_ATTR,
+                                                                               0);
                         int32_t reqHardKeyboard = AaptXml::getIntegerAttribute(tree,
-                                REQ_HARD_KEYBOARD_ATTR, 0);
+                                                                               REQ_HARD_KEYBOARD_ATTR,
+                                                                               0);
                         int32_t reqNavigation = AaptXml::getIntegerAttribute(tree,
-                                REQ_NAVIGATION_ATTR, 0);
+                                                                             REQ_NAVIGATION_ATTR,
+                                                                             0);
                         int32_t reqFiveWayNav = AaptXml::getIntegerAttribute(tree,
-                                REQ_FIVE_WAY_NAV_ATTR, 0);
+                                                                             REQ_FIVE_WAY_NAV_ATTR,
+                                                                             0);
                         printf("uses-configuration:");
                         if (reqTouchScreen != 0) {
                             printf(" reqTouchScreen='%d'", reqTouchScreen);
@@ -1445,21 +1439,24 @@ int doDump(Bundle* bundle)
                         withinSupportsInput = true;
                     } else if (tag == "supports-screens") {
                         smallScreen = AaptXml::getIntegerAttribute(tree,
-                                SMALL_SCREEN_ATTR, 1);
+                                                                   SMALL_SCREEN_ATTR, 1);
                         normalScreen = AaptXml::getIntegerAttribute(tree,
-                                NORMAL_SCREEN_ATTR, 1);
+                                                                    NORMAL_SCREEN_ATTR, 1);
                         largeScreen = AaptXml::getIntegerAttribute(tree,
-                                LARGE_SCREEN_ATTR, 1);
+                                                                   LARGE_SCREEN_ATTR, 1);
                         xlargeScreen = AaptXml::getIntegerAttribute(tree,
-                                XLARGE_SCREEN_ATTR, 1);
+                                                                    XLARGE_SCREEN_ATTR, 1);
                         anyDensity = AaptXml::getIntegerAttribute(tree,
-                                ANY_DENSITY_ATTR, 1);
+                                                                  ANY_DENSITY_ATTR, 1);
                         requiresSmallestWidthDp = AaptXml::getIntegerAttribute(tree,
-                                REQUIRES_SMALLEST_WIDTH_DP_ATTR, 0);
+                                                                               REQUIRES_SMALLEST_WIDTH_DP_ATTR,
+                                                                               0);
                         compatibleWidthLimitDp = AaptXml::getIntegerAttribute(tree,
-                                COMPATIBLE_WIDTH_LIMIT_DP_ATTR, 0);
+                                                                              COMPATIBLE_WIDTH_LIMIT_DP_ATTR,
+                                                                              0);
                         largestWidthLimitDp = AaptXml::getIntegerAttribute(tree,
-                                LARGEST_WIDTH_LIMIT_DP_ATTR, 0);
+                                                                           LARGEST_WIDTH_LIMIT_DP_ATTR,
+                                                                           0);
                     } else if (tag == "feature-group") {
                         withinFeatureGroup = true;
                         FeatureGroup group;
@@ -1474,7 +1471,7 @@ int doDump(Bundle* bundle)
                     } else if (tag == "uses-feature") {
                         String8 name = AaptXml::getAttribute(tree, NAME_ATTR, &error);
                         if (name != "" && error == "") {
-                            const char* androidSchema =
+                            const char *androidSchema =
                                     "http://schemas.android.com/apk/res/android";
 
                             int32_t req = AaptXml::getIntegerAttribute(tree, REQUIRED_ATTR, 1,
@@ -1501,7 +1498,7 @@ int doDump(Bundle* bundle)
                             }
                         } else {
                             int vers = AaptXml::getIntegerAttribute(tree,
-                                    GL_ES_VERSION_ATTR, &error);
+                                                                    GL_ES_VERSION_ATTR, &error);
                             if (error == "") {
                                 if (vers > commonFeatures.openGLESVersion) {
                                     commonFeatures.openGLESVersion = vers;
@@ -1540,8 +1537,10 @@ int doDump(Bundle* bundle)
                         }
 
                         printUsesPermission(name,
-                                AaptXml::getIntegerAttribute(tree, REQUIRED_ATTR, 1) == 0,
-                                AaptXml::getIntegerAttribute(tree, MAX_SDK_VERSION_ATTR));
+                                            AaptXml::getIntegerAttribute(tree, REQUIRED_ATTR, 1) ==
+                                            0,
+                                            AaptXml::getIntegerAttribute(tree,
+                                                                         MAX_SDK_VERSION_ATTR));
 
                     } else if (tag == "uses-permission-sdk-23" || tag == "uses-permission-sdk-m") {
                         String8 name = AaptXml::getAttribute(tree, NAME_ATTR, &error);
@@ -1566,31 +1565,31 @@ int doDump(Bundle* bundle)
                         String8 name = AaptXml::getAttribute(tree, NAME_ATTR, &error);
                         if (name != "" && error == "") {
                             printf("uses-package:'%s'\n",
-                                    ResTable::normalizeForOutput(name.string()).string());
+                                   ResTable::normalizeForOutput(name.string()).string());
                         } else {
                             fprintf(stderr, "ERROR getting 'android:name' attribute: %s\n",
                                     error.string());
-                                goto bail;
+                            goto bail;
                         }
                     } else if (tag == "original-package") {
                         String8 name = AaptXml::getAttribute(tree, NAME_ATTR, &error);
                         if (name != "" && error == "") {
                             printf("original-package:'%s'\n",
-                                    ResTable::normalizeForOutput(name.string()).string());
+                                   ResTable::normalizeForOutput(name.string()).string());
                         } else {
                             fprintf(stderr, "ERROR getting 'android:name' attribute: %s\n",
                                     error.string());
-                                goto bail;
+                            goto bail;
                         }
                     } else if (tag == "supports-gl-texture") {
                         String8 name = AaptXml::getAttribute(tree, NAME_ATTR, &error);
                         if (name != "" && error == "") {
                             printf("supports-gl-texture:'%s'\n",
-                                    ResTable::normalizeForOutput(name.string()).string());
+                                   ResTable::normalizeForOutput(name.string()).string());
                         } else {
                             fprintf(stderr, "ERROR getting 'android:name' attribute: %s\n",
                                     error.string());
-                                goto bail;
+                            goto bail;
                         }
                     } else if (tag == "compatible-screens") {
                         printCompatibleScreens(tree, &error);
@@ -1607,8 +1606,8 @@ int doDump(Bundle* bundle)
                                                                       &error);
                             if (publicKey != "" && error == "") {
                                 printf("package-verifier: name='%s' publicKey='%s'\n",
-                                        ResTable::normalizeForOutput(name.string()).string(),
-                                        ResTable::normalizeForOutput(publicKey.string()).string());
+                                       ResTable::normalizeForOutput(name.string()).string(),
+                                       ResTable::normalizeForOutput(publicKey.string()).string());
                             }
                         }
                     }
@@ -1629,7 +1628,7 @@ int doDump(Bundle* bundle)
                     hasBindNotificationListenerServicePermission = false;
                     hasBindDreamServicePermission = false;
                     if (withinApplication) {
-                        if(tag == "activity") {
+                        if (tag == "activity") {
                             withinActivity = true;
                             activityName = AaptXml::getAttribute(tree, NAME_ATTR, &error);
                             if (error != "") {
@@ -1639,7 +1638,7 @@ int doDump(Bundle* bundle)
                             }
 
                             activityLabel = AaptXml::getResolvedAttribute(res, tree, LABEL_ATTR,
-                                    &error);
+                                                                          &error);
                             if (error != "") {
                                 fprintf(stderr, "ERROR getting 'android:label' attribute: %s\n",
                                         error.string());
@@ -1647,7 +1646,7 @@ int doDump(Bundle* bundle)
                             }
 
                             activityIcon = AaptXml::getResolvedAttribute(res, tree, ICON_ATTR,
-                                    &error);
+                                                                         &error);
                             if (error != "") {
                                 fprintf(stderr, "ERROR getting 'android:icon' attribute: %s\n",
                                         error.string());
@@ -1655,7 +1654,7 @@ int doDump(Bundle* bundle)
                             }
 
                             activityBanner = AaptXml::getResolvedAttribute(res, tree, BANNER_ATTR,
-                                    &error);
+                                                                           &error);
                             if (error != "") {
                                 fprintf(stderr, "ERROR getting 'android:banner' attribute: %s\n",
                                         error.string());
@@ -1663,21 +1662,22 @@ int doDump(Bundle* bundle)
                             }
 
                             int32_t orien = AaptXml::getResolvedIntegerAttribute(res, tree,
-                                    SCREEN_ORIENTATION_ATTR, &error);
+                                                                                 SCREEN_ORIENTATION_ATTR,
+                                                                                 &error);
                             if (error == "") {
                                 if (orien == 0 || orien == 6 || orien == 8) {
                                     // Requests landscape, sensorLandscape, or reverseLandscape.
                                     addImpliedFeature(
                                             &impliedFeatures, "android.hardware.screen.landscape",
                                             String8("one or more activities have specified a "
-                                                    "landscape orientation"),
+                                                            "landscape orientation"),
                                             false);
                                 } else if (orien == 1 || orien == 7 || orien == 9) {
                                     // Requests portrait, sensorPortrait, or reversePortrait.
                                     addImpliedFeature(
                                             &impliedFeatures, "android.hardware.screen.portrait",
                                             String8("one or more activities have specified a "
-                                                    "portrait orientation"),
+                                                            "portrait orientation"),
                                             false);
                                 }
                             }
@@ -1686,13 +1686,13 @@ int doDump(Bundle* bundle)
                             if (error != "") {
                                 fprintf(stderr,
                                         "ERROR getting 'android:name' attribute for uses-library"
-                                        " %s\n", error.string());
+                                                " %s\n", error.string());
                                 goto bail;
                             }
                             int req = AaptXml::getIntegerAttribute(tree,
-                                    REQUIRED_ATTR, 1);
+                                                                   REQUIRED_ATTR, 1);
                             printf("uses-library%s:'%s'\n",
-                                    req ? "" : "-not-required", ResTable::normalizeForOutput(
+                                   req ? "" : "-not-required", ResTable::normalizeForOutput(
                                             libraryName.string()).string());
                         } else if (tag == "receiver") {
                             withinReceiver = true;
@@ -1701,12 +1701,12 @@ int doDump(Bundle* bundle)
                             if (error != "") {
                                 fprintf(stderr,
                                         "ERROR getting 'android:name' attribute for receiver:"
-                                        " %s\n", error.string());
+                                                " %s\n", error.string());
                                 goto bail;
                             }
 
                             String8 permission = AaptXml::getAttribute(tree, PERMISSION_ATTR,
-                                    &error);
+                                                                       &error);
                             if (error == "") {
                                 if (permission == "android.permission.BIND_DEVICE_ADMIN") {
                                     hasBindDeviceAdminPermission = true;
@@ -1714,7 +1714,7 @@ int doDump(Bundle* bundle)
                             } else {
                                 fprintf(stderr,
                                         "ERROR getting 'android:permission' attribute for"
-                                        " receiver '%s': %s\n",
+                                                " receiver '%s': %s\n",
                                         receiverName.string(), error.string());
                             }
                         } else if (tag == "service") {
@@ -1728,21 +1728,21 @@ int doDump(Bundle* bundle)
                             }
 
                             String8 permission = AaptXml::getAttribute(tree, PERMISSION_ATTR,
-                                    &error);
+                                                                       &error);
                             if (error == "") {
                                 if (permission == "android.permission.BIND_INPUT_METHOD") {
                                     hasBindInputMethodPermission = true;
                                 } else if (permission ==
-                                        "android.permission.BIND_ACCESSIBILITY_SERVICE") {
+                                           "android.permission.BIND_ACCESSIBILITY_SERVICE") {
                                     hasBindAccessibilityServicePermission = true;
                                 } else if (permission ==
-                                        "android.permission.BIND_PRINT_SERVICE") {
+                                           "android.permission.BIND_PRINT_SERVICE") {
                                     hasBindPrintServicePermission = true;
                                 } else if (permission ==
-                                        "android.permission.BIND_NFC_SERVICE") {
+                                           "android.permission.BIND_NFC_SERVICE") {
                                     hasBindNfcServicePermission = true;
                                 } else if (permission ==
-                                        "android.permission.BIND_NOTIFICATION_LISTENER_SERVICE") {
+                                           "android.permission.BIND_NOTIFICATION_LISTENER_SERVICE") {
                                     hasBindNotificationListenerServicePermission = true;
                                 } else if (permission == "android.permission.BIND_DREAM_SERVICE") {
                                     hasBindDreamServicePermission = true;
@@ -1755,11 +1755,12 @@ int doDump(Bundle* bundle)
                             withinProvider = true;
 
                             bool exported = AaptXml::getResolvedIntegerAttribute(res, tree,
-                                    EXPORTED_ATTR, &error);
+                                                                                 EXPORTED_ATTR,
+                                                                                 &error);
                             if (error != "") {
                                 fprintf(stderr,
                                         "ERROR getting 'android:exported' attribute for provider:"
-                                        " %s\n", error.string());
+                                                " %s\n", error.string());
                                 goto bail;
                             }
 
@@ -1768,12 +1769,13 @@ int doDump(Bundle* bundle)
                             if (error != "") {
                                 fprintf(stderr,
                                         "ERROR getting 'android:grantUriPermissions' attribute for "
-                                        "provider: %s\n", error.string());
+                                                "provider: %s\n", error.string());
                                 goto bail;
                             }
 
                             String8 permission = AaptXml::getResolvedAttribute(res, tree,
-                                    PERMISSION_ATTR, &error);
+                                                                               PERMISSION_ATTR,
+                                                                               &error);
                             if (error != "") {
                                 fprintf(stderr, "ERROR getting 'android:permission' attribute for "
                                         "provider: %s\n", error.string());
@@ -1781,25 +1783,26 @@ int doDump(Bundle* bundle)
                             }
 
                             hasRequiredSafAttributes |= exported && grantUriPermissions &&
-                                permission == "android.permission.MANAGE_DOCUMENTS";
+                                                        permission ==
+                                                        "android.permission.MANAGE_DOCUMENTS";
 
                         } else if (bundle->getIncludeMetaData() && tag == "meta-data") {
                             String8 metaDataName = AaptXml::getResolvedAttribute(res, tree,
-                                    NAME_ATTR, &error);
+                                                                                 NAME_ATTR, &error);
                             if (error != "") {
                                 fprintf(stderr, "ERROR getting 'android:name' attribute for "
                                         "meta-data:%s\n", error.string());
                                 goto bail;
                             }
                             printf("meta-data: name='%s' ",
-                                    ResTable::normalizeForOutput(metaDataName.string()).string());
+                                   ResTable::normalizeForOutput(metaDataName.string()).string());
                             printResolvedResourceAttribute(res, tree, VALUE_ATTR, String8("value"),
-                                    &error);
+                                                           &error);
                             if (error != "") {
                                 // Try looking for a RESOURCE_ATTR
                                 error = "";
                                 printResolvedResourceAttribute(res, tree, RESOURCE_ATTR,
-                                        String8("resource"), &error);
+                                                               String8("resource"), &error);
                                 if (error != "") {
                                     fprintf(stderr, "ERROR getting 'android:value' or "
                                             "'android:resource' attribute for "
@@ -1820,7 +1823,7 @@ int doDump(Bundle* bundle)
                         }
                     } else if (withinFeatureGroup && tag == "uses-feature") {
                         const String8 androidSchema("http://schemas.android.com/apk/res/android");
-                        FeatureGroup& top = featureGroups.editTop();
+                        FeatureGroup &top = featureGroups.editTop();
 
                         String8 name = AaptXml::getResolvedAttribute(res, tree, NAME_ATTR, &error);
                         if (name != "" && error == "") {
@@ -1842,7 +1845,7 @@ int doDump(Bundle* bundle)
 
                         } else {
                             int vers = AaptXml::getIntegerAttribute(tree, GL_ES_VERSION_ATTR,
-                                    &error);
+                                                                    &error);
                             if (error == "") {
                                 if (vers > top.openGLESVersion) {
                                     top.openGLESVersion = vers;
@@ -1873,29 +1876,29 @@ int doDump(Bundle* bundle)
                         String8 name = AaptXml::getAttribute(tree, NAME_ATTR, &error);
                         if (error != "") {
                             fprintf(stderr, "ERROR getting 'android:name' attribute for "
-                                    "meta-data tag in service '%s': %s\n", serviceName.string(),
+                                            "meta-data tag in service '%s': %s\n", serviceName.string(),
                                     error.string());
                             goto bail;
                         }
 
                         if (name == "android.nfc.cardemulation.host_apdu_service" ||
-                                name == "android.nfc.cardemulation.off_host_apdu_service") {
+                            name == "android.nfc.cardemulation.off_host_apdu_service") {
                             bool offHost = true;
                             if (name == "android.nfc.cardemulation.host_apdu_service") {
                                 offHost = false;
                             }
 
                             String8 xmlPath = AaptXml::getResolvedAttribute(res, tree,
-                                    RESOURCE_ATTR, &error);
+                                                                            RESOURCE_ATTR, &error);
                             if (error != "") {
                                 fprintf(stderr, "ERROR getting 'android:resource' attribute for "
-                                        "meta-data tag in service '%s': %s\n",
+                                                "meta-data tag in service '%s': %s\n",
                                         serviceName.string(), error.string());
                                 goto bail;
                             }
 
                             Vector<String8> categories = getNfcAidCategories(assets, xmlPath,
-                                    offHost, &error);
+                                                                             offHost, &error);
                             if (error != "") {
                                 fprintf(stderr, "ERROR getting AID category for service '%s'\n",
                                         serviceName.string());
@@ -1928,7 +1931,7 @@ int doDump(Bundle* bundle)
                                 isMainActivity = true;
                                 actMainActivity = true;
                             } else if (action == "android.media.action.STILL_IMAGE_CAMERA" ||
-                                    action == "android.media.action.VIDEO_CAMERA") {
+                                       action == "android.media.action.VIDEO_CAMERA") {
                                 actCamera = true;
                             } else if (action == "android.media.action.STILL_IMAGE_CAMERA_SECURE") {
                                 actCameraSecure = true;
@@ -1945,18 +1948,18 @@ int doDump(Bundle* bundle)
                             } else if (action == "android.service.wallpaper.WallpaperService") {
                                 actWallpaperService = true;
                             } else if (action ==
-                                    "android.accessibilityservice.AccessibilityService") {
+                                       "android.accessibilityservice.AccessibilityService") {
                                 actAccessibilityService = true;
-                            } else if (action =="android.printservice.PrintService") {
+                            } else if (action == "android.printservice.PrintService") {
                                 actPrintService = true;
                             } else if (action ==
-                                    "android.nfc.cardemulation.action.HOST_APDU_SERVICE") {
+                                       "android.nfc.cardemulation.action.HOST_APDU_SERVICE") {
                                 actHostApduService = true;
                             } else if (action ==
-                                    "android.nfc.cardemulation.action.OFF_HOST_APDU_SERVICE") {
+                                       "android.nfc.cardemulation.action.OFF_HOST_APDU_SERVICE") {
                                 actOffHostApduService = true;
                             } else if (action ==
-                                    "android.service.notification.NotificationListenerService") {
+                                       "android.service.notification.NotificationListenerService") {
                                 actNotificationListenerService = true;
                             } else if (action == "android.service.dreams.DreamService") {
                                 actDreamService = true;
@@ -1996,13 +1999,13 @@ int doDump(Bundle* bundle)
                 if (!hasWriteExternalStoragePermission) {
                     printUsesPermission(String8("android.permission.WRITE_EXTERNAL_STORAGE"));
                     printUsesImpliedPermission(String8("android.permission.WRITE_EXTERNAL_STORAGE"),
-                            String8("targetSdkVersion < 4"));
+                                               String8("targetSdkVersion < 4"));
                     hasWriteExternalStoragePermission = true;
                 }
                 if (!hasReadPhoneStatePermission) {
                     printUsesPermission(String8("android.permission.READ_PHONE_STATE"));
                     printUsesImpliedPermission(String8("android.permission.READ_PHONE_STATE"),
-                            String8("targetSdkVersion < 4"));
+                                               String8("targetSdkVersion < 4"));
                 }
             }
 
@@ -2013,7 +2016,7 @@ int doDump(Bundle* bundle)
             if (!hasReadExternalStoragePermission && hasWriteExternalStoragePermission) {
                 printUsesPermission(String8("android.permission.READ_EXTERNAL_STORAGE"));
                 printUsesImpliedPermission(String8("android.permission.READ_EXTERNAL_STORAGE"),
-                        String8("requested WRITE_EXTERNAL_STORAGE"));
+                                           String8("requested WRITE_EXTERNAL_STORAGE"));
             }
 
             // Pre-JellyBean call log permission compatibility.
@@ -2021,12 +2024,12 @@ int doDump(Bundle* bundle)
                 if (!hasReadCallLogPermission && hasReadContactsPermission) {
                     printUsesPermission(String8("android.permission.READ_CALL_LOG"));
                     printUsesImpliedPermission(String8("android.permission.READ_CALL_LOG"),
-                            String8("targetSdkVersion < 16 and requested READ_CONTACTS"));
+                                               String8("targetSdkVersion < 16 and requested READ_CONTACTS"));
                 }
                 if (!hasWriteCallLogPermission && hasWriteContactsPermission) {
                     printUsesPermission(String8("android.permission.WRITE_CALL_LOG"));
                     printUsesImpliedPermission(String8("android.permission.WRITE_CALL_LOG"),
-                            String8("targetSdkVersion < 16 and requested WRITE_CONTACTS"));
+                                               String8("targetSdkVersion < 16 and requested WRITE_CONTACTS"));
                 }
             }
 
@@ -2045,7 +2048,7 @@ int doDump(Bundle* bundle)
             } else {
                 // <feature-group> tags are defined, so we ignore implied features and
                 for (size_t i = 0; i < numFeatureGroups; i++) {
-                    FeatureGroup& grp = featureGroups.editItemAt(i);
+                    FeatureGroup &grp = featureGroups.editItemAt(i);
 
                     if (commonFeatures.openGLESVersion > grp.openGLESVersion) {
                         grp.openGLESVersion = commonFeatures.openGLESVersion;
@@ -2057,7 +2060,7 @@ int doDump(Bundle* bundle)
                     for (size_t j = 0; j < numCommonFeatures; j++) {
                         if (grp.features.indexOfKey(commonFeatures.features.keyAt(j)) < 0) {
                             grp.features.add(commonFeatures.features.keyAt(j),
-                                    commonFeatures.features[j]);
+                                             commonFeatures.features[j]);
                         }
                     }
 
@@ -2117,7 +2120,7 @@ int doDump(Bundle* bundle)
             if (hasOtherActivities) {
                 printf("other-activities\n");
             }
-             if (hasOtherReceivers) {
+            if (hasOtherReceivers) {
                 printf("other-receivers\n");
             }
             if (hasOtherServices) {
@@ -2127,7 +2130,7 @@ int doDump(Bundle* bundle)
             // For modern apps, if screen size buckets haven't been specified
             // but the new width ranges have, then infer the buckets from them.
             if (smallScreen > 0 && normalScreen > 0 && largeScreen > 0 && xlargeScreen > 0
-                    && requiresSmallestWidthDp > 0) {
+                && requiresSmallestWidthDp > 0) {
                 int compatWidth = compatibleWidthLimitDp;
                 if (compatWidth <= 0) {
                     compatWidth = requiresSmallestWidthDp;
@@ -2173,7 +2176,7 @@ int doDump(Bundle* bundle)
             }
             if (anyDensity > 0) {
                 anyDensity = (targetSdk >= 4 || requiresSmallestWidthDp > 0
-                        || compatibleWidthLimitDp > 0) ? -1 : 0;
+                              || compatibleWidthLimitDp > 0) ? -1 : 0;
             }
             printf("supports-screens:");
             if (smallScreen != 0) {
@@ -2202,8 +2205,8 @@ int doDump(Bundle* bundle)
 
             printf("locales:");
             const size_t NL = locales.size();
-            for (size_t i=0; i<NL; i++) {
-                const char* localeStr =  locales[i].string();
+            for (size_t i = 0; i < NL; i++) {
+                const char *localeStr = locales[i].string();
                 if (localeStr == NULL || strlen(localeStr) == 0) {
                     localeStr = "--_--";
                 }
@@ -2213,16 +2216,16 @@ int doDump(Bundle* bundle)
 
             printf("densities:");
             const size_t ND = densities.size();
-            for (size_t i=0; i<ND; i++) {
+            for (size_t i = 0; i < ND; i++) {
                 printf(" '%d'", densities[i]);
             }
             printf("\n");
 
-            AssetDir* dir = assets.openNonAssetDir(assetsCookie, "lib");
+            AssetDir *dir = assets.openNonAssetDir(assetsCookie, "lib");
             if (dir != NULL) {
                 if (dir->getFileCount() > 0) {
                     SortedVector<String8> architectures;
-                    for (size_t i=0; i<dir->getFileCount(); i++) {
+                    for (size_t i = 0; i < dir->getFileCount(); i++) {
                         architectures.add(ResTable::normalizeForOutput(
                                 dir->getFileName(i).string()));
                     }
@@ -2278,7 +2281,7 @@ int doDump(Bundle* bundle)
             Vector<ResTable_config> configs;
             res.getConfigurations(&configs);
             const size_t N = configs.size();
-            for (size_t i=0; i<N; i++) {
+            for (size_t i = 0; i < N; i++) {
                 printf("%s\n", configs[i].toString().string());
             }
         } else {
@@ -2289,7 +2292,7 @@ int doDump(Bundle* bundle)
 
     result = NO_ERROR;
 
-bail:
+    bail:
     if (asset) {
         delete asset;
     }
@@ -2301,11 +2304,10 @@ bail:
  * Handle the "add" command, which wants to add files to a new or
  * pre-existing archive.
  */
-int doAdd(Bundle* bundle)
-{
-    ZipFile* zip = NULL;
+int doAdd(Bundle *bundle) {
+    ZipFile *zip = NULL;
     status_t result = UNKNOWN_ERROR;
-    const char* zipFileName;
+    const char *zipFileName;
 
     if (bundle->getUpdate()) {
         /* avoid confusion */
@@ -2331,7 +2333,7 @@ int doAdd(Bundle* bundle)
     }
 
     for (int i = 1; i < bundle->getFileSpecCount(); i++) {
-        const char* fileName = bundle->getFileSpecEntry(i);
+        const char *fileName = bundle->getFileSpecEntry(i);
 
         if (strcasecmp(String8(fileName).getPathExtension().string(), ".gz") == 0) {
             printf(" '%s'... (from gzip)\n", fileName);
@@ -2340,7 +2342,7 @@ int doAdd(Bundle* bundle)
             if (bundle->getJunkPath()) {
                 String8 storageName = String8(fileName).getPathLeaf();
                 printf(" '%s' as '%s'...\n", fileName,
-                        ResTable::normalizeForOutput(storageName.string()).string());
+                       ResTable::normalizeForOutput(storageName.string()).string());
                 result = zip->add(fileName, storageName.string(),
                                   bundle->getCompressionMethod(), NULL);
             } else {
@@ -2363,7 +2365,7 @@ int doAdd(Bundle* bundle)
 
     result = NO_ERROR;
 
-bail:
+    bail:
     delete zip;
     return (result != NO_ERROR);
 }
@@ -2372,11 +2374,10 @@ bail:
 /*
  * Delete files from an existing archive.
  */
-int doRemove(Bundle* bundle)
-{
-    ZipFile* zip = NULL;
+int doRemove(Bundle *bundle) {
+    ZipFile *zip = NULL;
     status_t result = UNKNOWN_ERROR;
-    const char* zipFileName;
+    const char *zipFileName;
 
     if (bundle->getFileSpecCount() < 1) {
         fprintf(stderr, "ERROR: must specify zip file name\n");
@@ -2392,13 +2393,13 @@ int doRemove(Bundle* bundle)
     zip = openReadWrite(zipFileName, false);
     if (zip == NULL) {
         fprintf(stderr, "ERROR: failed opening Zip archive '%s'\n",
-            zipFileName);
+                zipFileName);
         goto bail;
     }
 
     for (int i = 1; i < bundle->getFileSpecCount(); i++) {
-        const char* fileName = bundle->getFileSpecEntry(i);
-        ZipEntry* entry;
+        const char *fileName = bundle->getFileSpecEntry(i);
+        ZipEntry *entry;
 
         entry = zip->getEntryByName(fileName);
         if (entry == NULL) {
@@ -2410,7 +2411,7 @@ int doRemove(Bundle* bundle)
 
         if (result != NO_ERROR) {
             fprintf(stderr, "Unable to delete '%s' from '%s'\n",
-                bundle->getFileSpecEntry(i), zipFileName);
+                    bundle->getFileSpecEntry(i), zipFileName);
             goto bail;
         }
     }
@@ -2418,17 +2419,18 @@ int doRemove(Bundle* bundle)
     /* update the archive */
     zip->flush();
 
-bail:
+    bail:
     delete zip;
     return (result != NO_ERROR);
 }
 
-static status_t addResourcesToBuilder(const sp<AaptDir>& dir, const sp<ApkBuilder>& builder, bool ignoreConfig=false) {
+static status_t addResourcesToBuilder(const sp<AaptDir> &dir, const sp<ApkBuilder> &builder,
+                                      bool ignoreConfig = false) {
     const size_t numDirs = dir->getDirs().size();
     for (size_t i = 0; i < numDirs; i++) {
         bool ignore = ignoreConfig;
-        const sp<AaptDir>& subDir = dir->getDirs().valueAt(i);
-        const char* dirStr = subDir->getLeaf().string();
+        const sp<AaptDir> &subDir = dir->getDirs().valueAt(i);
+        const char *dirStr = subDir->getLeaf().string();
         if (!ignore && strstr(dirStr, "mipmap") == dirStr) {
             ignore = true;
         }
@@ -2459,7 +2461,7 @@ static status_t addResourcesToBuilder(const sp<AaptDir>& dir, const sp<ApkBuilde
     return NO_ERROR;
 }
 
-static String8 buildApkName(const String8& original, const sp<ApkSplit>& split) {
+static String8 buildApkName(const String8 &original, const sp<ApkSplit> &split) {
     if (split->isBase()) {
         return original;
     }
@@ -2467,26 +2469,25 @@ static String8 buildApkName(const String8& original, const sp<ApkSplit>& split) 
     String8 ext(original.getPathExtension());
     if (ext == String8(".apk")) {
         return String8::format("%s_%s%s",
-                original.getBasePath().string(),
-                split->getDirectorySafeName().string(),
-                ext.string());
+                               original.getBasePath().string(),
+                               split->getDirectorySafeName().string(),
+                               ext.string());
     }
 
     return String8::format("%s_%s", original.string(),
-            split->getDirectorySafeName().string());
+                           split->getDirectorySafeName().string());
 }
 
 /*
  * Package up an asset directory and associated application files.
  */
-int doPackage(Bundle* bundle)
-{
-    const char* outputAPKFile;
+int doPackage(Bundle *bundle) {
+    const char *outputAPKFile;
     int retVal = 1;
     status_t err;
     sp<AaptAssets> assets;
     int N;
-    FILE* fp;
+    FILE *fp;
     String8 dependencyFile;
     sp<ApkBuilder> builder;
 
@@ -2505,7 +2506,7 @@ int doPackage(Bundle* bundle)
 
     N = bundle->getFileSpecCount();
     if (N < 1 && bundle->getResourceSourceDirs().size() == 0 && bundle->getJarFiles().size() == 0
-            && bundle->getAndroidManifestFile() == NULL && bundle->getAssetSourceDirs().size() == 0) {
+        && bundle->getAndroidManifestFile() == NULL && bundle->getAssetSourceDirs().size() == 0) {
         fprintf(stderr, "ERROR: no input files\n");
         goto bail;
     }
@@ -2518,8 +2519,8 @@ int doPackage(Bundle* bundle)
         type = getFileType(outputAPKFile);
         if (type != kFileTypeNonexistent && type != kFileTypeRegular) {
             fprintf(stderr,
-                "ERROR: output file '%s' exists but is not regular file\n",
-                outputAPKFile);
+                    "ERROR: output file '%s' exists but is not regular file\n",
+                    outputAPKFile);
             goto bail;
         }
     }
@@ -2554,12 +2555,13 @@ int doPackage(Bundle* bundle)
 
     // If we are generating a Split APK, find out which configurations to split on.
     if (bundle->getSplitConfigurations().size() > 0) {
-        const Vector<String8>& splitStrs = bundle->getSplitConfigurations();
+        const Vector<String8> &splitStrs = bundle->getSplitConfigurations();
         const size_t numSplits = splitStrs.size();
         for (size_t i = 0; i < numSplits; i++) {
             std::set<ConfigDescription> configs;
             if (!AaptConfig::parseCommaSeparatedList(splitStrs[i], &configs)) {
-                fprintf(stderr, "ERROR: failed to parse split configuration '%s'\n", splitStrs[i].string());
+                fprintf(stderr, "ERROR: failed to parse split configuration '%s'\n",
+                        splitStrs[i].string());
                 goto bail;
             }
 
@@ -2616,11 +2618,13 @@ int doPackage(Bundle* bundle)
             // Write the R.java file into the appropriate class directory
             // e.g. gen/com/foo/app/R.java
             err = writeResourceSymbols(bundle, assets, assets->getPackage(), true,
-                    bundle->getBuildSharedLibrary() || bundle->getBuildAppAsSharedLibrary());
+                                       bundle->getBuildSharedLibrary() ||
+                                       bundle->getBuildAppAsSharedLibrary());
         } else {
             const String8 customPkg(bundle->getCustomPackage());
             err = writeResourceSymbols(bundle, assets, customPkg, true,
-                    bundle->getBuildSharedLibrary() || bundle->getBuildAppAsSharedLibrary());
+                                       bundle->getBuildSharedLibrary() ||
+                                       bundle->getBuildAppAsSharedLibrary());
         }
         if (err < 0) {
             goto bail;
@@ -2631,11 +2635,12 @@ int doPackage(Bundle* bundle)
         if (bundle->getExtraPackages() != NULL) {
             // Split on colon
             String8 libs(bundle->getExtraPackages());
-            char* packageString = strtok(libs.lockBuffer(libs.length()), ":");
+            char *packageString = strtok(libs.lockBuffer(libs.length()), ":");
             while (packageString != NULL) {
                 // Write the R.java file out with the correct package name
                 err = writeResourceSymbols(bundle, assets, String8(packageString), true,
-                        bundle->getBuildSharedLibrary() || bundle->getBuildAppAsSharedLibrary());
+                                           bundle->getBuildSharedLibrary() ||
+                                           bundle->getBuildAppAsSharedLibrary());
                 if (err < 0) {
                     goto bail;
                 }
@@ -2675,10 +2680,10 @@ int doPackage(Bundle* bundle)
             goto bail;
         }
 
-        const Vector<sp<ApkSplit> >& splits = builder->getSplits();
+        const Vector<sp<ApkSplit> > &splits = builder->getSplits();
         const size_t numSplits = splits.size();
         for (size_t i = 0; i < numSplits; i++) {
-            const sp<ApkSplit>& split = splits[i];
+            const sp<ApkSplit> &split = splits[i];
             String8 outputPath = buildApkName(String8(outputAPKFile), split);
             err = writeAPK(bundle, outputPath, split);
             if (err != NO_ERROR) {
@@ -2706,7 +2711,7 @@ int doPackage(Bundle* bundle)
     }
 
     retVal = 0;
-bail:
+    bail:
     if (SourcePos::hasErrors()) {
         SourcePos::printErrors(stderr);
     }
@@ -2724,8 +2729,7 @@ bail:
  *  Destination directory will be updated to match the PNG files in
  *  the source directory.
  */
-int doCrunch(Bundle* bundle)
-{
+int doCrunch(Bundle *bundle) {
     fprintf(stdout, "Crunching PNG Files in ");
     fprintf(stdout, "source dir: %s\n", bundle->getResourceSourceDirs()[0]);
     fprintf(stdout, "To destination dir: %s\n", bundle->getCrunchedOutputDir());
@@ -2740,8 +2744,7 @@ int doCrunch(Bundle* bundle)
  *  -i points to a single png file
  *  -o points to a single png output file
  */
-int doSingleCrunch(Bundle* bundle)
-{
+int doSingleCrunch(Bundle *bundle) {
     fprintf(stdout, "Crunching single PNG file: %s\n", bundle->getSingleCrunchInputFile());
     fprintf(stdout, "\tOutput file: %s\n", bundle->getSingleCrunchOutputFile());
 
@@ -2756,7 +2759,7 @@ int doSingleCrunch(Bundle* bundle)
     return NO_ERROR;
 }
 
-int runInDaemonMode(Bundle* bundle) {
+int runInDaemonMode(Bundle *bundle) {
     std::cout << "Ready" << std::endl;
     for (std::string cmd; std::getline(std::cin, cmd);) {
         if (cmd == "quit") {
@@ -2783,167 +2786,167 @@ int runInDaemonMode(Bundle* bundle) {
 }
 
 char CONSOLE_DATA[2925] = {
-    32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
-    32, 32, 32, 32, 32, 32, 32, 95, 46, 32, 32, 32, 32, 32, 32, 32, 32, 32,
-    32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
-    32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 10, 32, 32, 32, 32, 32, 32, 32,
-    32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 61, 63,
-    86, 35, 40, 46, 46, 95, 95, 95, 95, 97, 97, 44, 32, 46, 124, 42, 33, 83,
-    62, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
-    32, 32, 32, 10, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
-    32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 58, 46, 58, 59, 61, 59, 61, 81,
-    81, 81, 81, 66, 96, 61, 61, 58, 46, 46, 46, 58, 32, 32, 32, 32, 32, 32,
-    32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 10, 32, 32, 32,
-    32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
-    32, 32, 32, 46, 61, 59, 59, 59, 58, 106, 81, 81, 81, 81, 102, 59, 61, 59,
-    59, 61, 61, 61, 58, 46, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
-    32, 32, 32, 32, 32, 32, 32, 10, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
-    32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 61, 59, 59,
-    59, 58, 109, 81, 81, 81, 81, 61, 59, 59, 59, 59, 59, 58, 59, 59, 46, 32,
-    32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
-    10, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
-    32, 32, 32, 32, 32, 32, 32, 46, 61, 59, 59, 59, 60, 81, 81, 81, 81, 87,
-    58, 59, 59, 59, 59, 59, 59, 61, 119, 44, 32, 32, 32, 32, 32, 32, 32, 32,
-    32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 10, 32, 32, 32, 32, 32, 32,
-    32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 46,
-    47, 61, 59, 59, 58, 100, 81, 81, 81, 81, 35, 58, 59, 59, 59, 59, 59, 58,
-    121, 81, 91, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
-    32, 32, 32, 32, 10, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
-    32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 46, 109, 58, 59, 59, 61, 81, 81,
-    81, 81, 81, 109, 58, 59, 59, 59, 59, 61, 109, 81, 81, 76, 46, 32, 32, 32,
-    32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 10, 32, 32,
-    32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
-    32, 32, 32, 41, 87, 59, 61, 59, 41, 81, 81, 81, 81, 81, 81, 59, 61, 59,
-    59, 58, 109, 81, 81, 87, 39, 46, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
-    32, 32, 32, 32, 32, 32, 32, 32, 10, 32, 32, 32, 32, 32, 32, 32, 32, 32,
-    32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 60, 81, 91, 59,
-    59, 61, 81, 81, 81, 81, 81, 87, 43, 59, 58, 59, 60, 81, 81, 81, 76, 32,
-    32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
-    32, 10, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
-    32, 32, 32, 32, 32, 32, 32, 32, 52, 91, 58, 45, 59, 87, 81, 81, 81, 81,
-    70, 58, 58, 58, 59, 106, 81, 81, 81, 91, 32, 32, 32, 32, 32, 32, 32, 32,
-    32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 10, 32, 32, 32, 32, 32,
-    32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
-    32, 93, 40, 32, 46, 59, 100, 81, 81, 81, 81, 40, 58, 46, 46, 58, 100, 81,
-    81, 68, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
-    32, 32, 32, 32, 32, 10, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
-    32, 46, 46, 46, 32, 46, 46, 46, 32, 46, 32, 46, 45, 91, 59, 61, 58, 109,
-    81, 81, 81, 87, 46, 58, 61, 59, 60, 81, 81, 80, 32, 32, 32, 32, 32, 32,
-    32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 10, 32,
-    32, 32, 32, 32, 32, 32, 32, 46, 46, 61, 59, 61, 61, 61, 59, 61, 61, 59,
-    59, 59, 58, 58, 46, 46, 41, 58, 59, 58, 81, 81, 81, 81, 69, 58, 59, 59,
-    60, 81, 81, 68, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
-    32, 32, 32, 32, 32, 32, 32, 32, 32, 10, 32, 32, 32, 32, 32, 32, 58, 59,
-    61, 59, 59, 59, 59, 59, 59, 59, 59, 59, 59, 59, 59, 59, 59, 61, 61, 46,
-    61, 59, 93, 81, 81, 81, 81, 107, 58, 59, 58, 109, 87, 68, 96, 32, 32, 32,
-    46, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
-    32, 32, 10, 32, 32, 32, 46, 60, 61, 61, 59, 59, 59, 59, 59, 59, 59, 59,
-    59, 59, 59, 59, 59, 59, 59, 59, 59, 58, 58, 58, 115, 109, 68, 41, 36, 81,
-    109, 46, 61, 61, 81, 69, 96, 46, 58, 58, 46, 58, 46, 46, 32, 32, 32, 32,
-    32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 10, 46, 32, 95, 81,
-    67, 61, 61, 58, 59, 59, 59, 59, 59, 59, 59, 59, 59, 59, 59, 59, 59, 59,
-    59, 59, 59, 59, 58, 68, 39, 61, 105, 61, 63, 81, 119, 58, 106, 80, 32, 58,
-    61, 59, 59, 61, 59, 61, 59, 61, 46, 95, 32, 32, 32, 32, 32, 32, 32, 32,
-    32, 32, 32, 32, 32, 32, 10, 32, 32, 36, 81, 109, 105, 59, 61, 59, 59, 59,
-    59, 59, 59, 59, 59, 59, 59, 59, 59, 59, 59, 59, 59, 59, 59, 46, 58, 37,
-    73, 108, 108, 62, 52, 81, 109, 34, 32, 61, 59, 59, 59, 59, 59, 59, 59, 59,
-    59, 61, 59, 61, 61, 46, 46, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 10,
-    32, 46, 45, 57, 101, 43, 43, 61, 61, 59, 59, 59, 59, 59, 59, 61, 59, 59,
-    59, 59, 59, 59, 59, 59, 59, 58, 97, 46, 61, 108, 62, 126, 58, 106, 80, 96,
-    46, 61, 61, 59, 59, 59, 59, 59, 59, 59, 59, 59, 59, 59, 59, 59, 61, 61,
-    97, 103, 97, 32, 32, 32, 32, 32, 32, 32, 10, 32, 32, 32, 32, 45, 46, 32,
-    46, 32, 32, 32, 32, 32, 32, 32, 32, 45, 45, 45, 58, 59, 59, 59, 59, 61,
-    119, 81, 97, 124, 105, 124, 124, 39, 126, 95, 119, 58, 61, 58, 59, 59, 59,
-    59, 59, 59, 59, 59, 59, 59, 59, 59, 59, 59, 61, 119, 81, 81, 99, 32, 32,
-    32, 32, 32, 32, 10, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
-    32, 32, 32, 32, 32, 32, 32, 58, 59, 59, 58, 106, 81, 81, 81, 109, 119,
-    119, 119, 109, 109, 81, 81, 122, 58, 59, 59, 59, 59, 59, 59, 59, 59, 59,
-    59, 59, 59, 59, 59, 58, 115, 81, 87, 81, 102, 32, 32, 32, 32, 32, 32, 10,
-    32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
-    32, 32, 61, 58, 59, 61, 81, 81, 81, 81, 81, 81, 87, 87, 81, 81, 81, 81,
-    81, 58, 59, 59, 59, 59, 59, 59, 59, 59, 58, 45, 45, 45, 59, 59, 59, 41,
-    87, 66, 33, 32, 32, 32, 32, 32, 32, 32, 10, 32, 32, 32, 32, 32, 32, 32,
-    32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 58, 59, 59, 93, 81,
-    81, 81, 81, 81, 81, 81, 81, 81, 81, 81, 81, 81, 40, 58, 59, 59, 59, 58,
-    45, 32, 46, 32, 32, 32, 32, 32, 46, 32, 126, 96, 32, 32, 32, 32, 32, 32,
-    32, 32, 32, 10, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
-    32, 32, 32, 32, 32, 32, 58, 61, 59, 58, 81, 81, 81, 81, 81, 81, 81, 81,
-    81, 81, 81, 81, 81, 40, 58, 59, 59, 59, 58, 32, 32, 32, 32, 32, 32, 32,
-    32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 10, 32, 32, 32,
-    32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 58,
-    59, 59, 58, 81, 81, 81, 81, 81, 81, 81, 81, 81, 81, 81, 81, 81, 40, 58,
-    59, 59, 59, 46, 46, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
-    32, 32, 32, 32, 32, 32, 32, 10, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
-    32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 58, 61, 59, 60, 81, 81, 81, 81,
-    81, 81, 81, 81, 81, 81, 81, 81, 81, 59, 61, 59, 59, 61, 32, 32, 32, 32,
-    32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
-    10, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
-    32, 32, 32, 58, 59, 59, 93, 81, 81, 81, 81, 81, 81, 81, 81, 81, 81, 81,
-    81, 81, 40, 59, 59, 59, 59, 32, 46, 32, 32, 32, 32, 32, 32, 32, 32, 32,
-    32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 10, 32, 32, 32, 32, 32, 32,
-    32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 58, 61, 58, 106,
-    81, 81, 81, 81, 81, 81, 81, 81, 81, 81, 81, 81, 81, 76, 58, 59, 59, 59,
-    32, 46, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
-    32, 32, 32, 32, 10, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
-    32, 32, 32, 32, 32, 32, 32, 61, 58, 58, 81, 81, 81, 81, 81, 81, 81, 81,
-    81, 81, 81, 81, 81, 87, 58, 59, 59, 59, 59, 32, 46, 32, 32, 32, 32, 32,
-    32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 10, 32, 32,
-    32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
-    58, 59, 61, 41, 81, 81, 81, 81, 81, 81, 81, 81, 81, 81, 81, 81, 87, 59,
-    61, 58, 59, 59, 46, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
-    32, 32, 32, 32, 32, 32, 32, 32, 10, 32, 32, 32, 32, 32, 32, 32, 32, 32,
-    32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 58, 61, 58, 61, 81, 81, 81,
-    81, 81, 81, 81, 81, 81, 81, 81, 81, 107, 58, 59, 59, 59, 59, 58, 32, 32,
-    32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
-    32, 10, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
-    32, 32, 32, 32, 58, 59, 59, 58, 51, 81, 81, 81, 81, 81, 81, 81, 81, 81,
-    81, 102, 94, 59, 59, 59, 59, 59, 61, 32, 32, 32, 32, 32, 32, 32, 32, 32,
-    32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 10, 32, 32, 32, 32, 32,
-    32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 58, 61, 59,
-    59, 59, 43, 63, 36, 81, 81, 81, 87, 64, 86, 102, 58, 59, 59, 59, 59, 59,
-    59, 59, 46, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
-    32, 32, 32, 32, 32, 10, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
-    32, 32, 32, 32, 32, 32, 32, 46, 61, 59, 59, 59, 59, 59, 59, 59, 43, 33,
-    58, 126, 126, 58, 59, 59, 59, 59, 59, 59, 59, 59, 59, 59, 32, 46, 32, 32,
-    32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 10, 32,
-    32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 46,
-    61, 59, 59, 59, 58, 45, 58, 61, 59, 58, 58, 58, 61, 59, 59, 59, 59, 59,
-    59, 59, 59, 59, 59, 59, 59, 58, 32, 46, 32, 32, 32, 32, 32, 32, 32, 32,
-    32, 32, 32, 32, 32, 32, 32, 32, 32, 10, 32, 32, 32, 32, 32, 32, 32, 32,
-    32, 32, 32, 32, 32, 32, 32, 32, 32, 46, 61, 59, 59, 59, 59, 59, 58, 95,
-    32, 45, 61, 59, 61, 59, 59, 59, 59, 59, 59, 59, 45, 58, 59, 59, 59, 59,
-    61, 58, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
-    32, 32, 10, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
-    32, 32, 58, 61, 59, 59, 59, 59, 59, 61, 59, 61, 46, 46, 32, 45, 45, 45,
-    59, 58, 45, 45, 46, 58, 59, 59, 59, 59, 59, 59, 61, 46, 32, 32, 32, 32,
-    32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 10, 32, 32, 32, 32,
-    32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 46, 58, 59, 59, 59, 59,
-    59, 59, 59, 59, 59, 61, 59, 46, 32, 32, 46, 32, 46, 32, 58, 61, 59, 59,
-    59, 59, 59, 59, 59, 59, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
-    32, 32, 32, 32, 32, 32, 10, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
-    32, 32, 32, 32, 32, 32, 32, 45, 59, 59, 59, 59, 59, 59, 59, 59, 58, 32,
-    32, 32, 32, 32, 32, 32, 32, 32, 61, 59, 59, 59, 59, 59, 59, 59, 58, 32,
-    32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 10,
-    32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
-    46, 61, 59, 59, 59, 59, 59, 59, 59, 32, 46, 32, 32, 32, 32, 32, 32, 61,
-    46, 61, 59, 59, 59, 59, 59, 59, 58, 32, 32, 32, 32, 32, 32, 32, 32, 32,
-    32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 10, 32, 32, 32, 32, 32, 32, 32,
-    32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 61, 59, 59, 59, 59, 59, 59,
-    59, 59, 32, 46, 32, 32, 32, 32, 32, 32, 32, 46, 61, 58, 59, 59, 59, 59,
-    59, 58, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
-    32, 32, 32, 10, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
-    32, 32, 32, 32, 58, 59, 59, 59, 59, 59, 59, 59, 59, 46, 46, 32, 32, 32,
-    32, 32, 32, 32, 61, 59, 59, 59, 59, 59, 59, 59, 45, 32, 32, 32, 32, 32,
-    32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 10, 32, 32, 32,
-    32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 46, 32, 45, 61,
-    59, 59, 59, 59, 59, 58, 32, 46, 32, 32, 32, 32, 32, 32, 32, 58, 59, 59,
-    59, 59, 59, 58, 45, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
-    32, 32, 32, 32, 32, 32, 32, 10, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
-    32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 45, 45, 45, 45, 32, 46, 32,
-    32, 32, 32, 32, 32, 32, 32, 32, 32, 45, 61, 59, 58, 45, 45, 32, 32, 32,
-    32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
-    10, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
-    32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
-    32, 32, 46, 32, 32, 46, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
-    32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 10
-  };
+        32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
+        32, 32, 32, 32, 32, 32, 32, 95, 46, 32, 32, 32, 32, 32, 32, 32, 32, 32,
+        32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
+        32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 10, 32, 32, 32, 32, 32, 32, 32,
+        32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 61, 63,
+        86, 35, 40, 46, 46, 95, 95, 95, 95, 97, 97, 44, 32, 46, 124, 42, 33, 83,
+        62, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
+        32, 32, 32, 10, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
+        32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 58, 46, 58, 59, 61, 59, 61, 81,
+        81, 81, 81, 66, 96, 61, 61, 58, 46, 46, 46, 58, 32, 32, 32, 32, 32, 32,
+        32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 10, 32, 32, 32,
+        32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
+        32, 32, 32, 46, 61, 59, 59, 59, 58, 106, 81, 81, 81, 81, 102, 59, 61, 59,
+        59, 61, 61, 61, 58, 46, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
+        32, 32, 32, 32, 32, 32, 32, 10, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
+        32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 61, 59, 59,
+        59, 58, 109, 81, 81, 81, 81, 61, 59, 59, 59, 59, 59, 58, 59, 59, 46, 32,
+        32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
+        10, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
+        32, 32, 32, 32, 32, 32, 32, 46, 61, 59, 59, 59, 60, 81, 81, 81, 81, 87,
+        58, 59, 59, 59, 59, 59, 59, 61, 119, 44, 32, 32, 32, 32, 32, 32, 32, 32,
+        32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 10, 32, 32, 32, 32, 32, 32,
+        32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 46,
+        47, 61, 59, 59, 58, 100, 81, 81, 81, 81, 35, 58, 59, 59, 59, 59, 59, 58,
+        121, 81, 91, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
+        32, 32, 32, 32, 10, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
+        32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 46, 109, 58, 59, 59, 61, 81, 81,
+        81, 81, 81, 109, 58, 59, 59, 59, 59, 61, 109, 81, 81, 76, 46, 32, 32, 32,
+        32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 10, 32, 32,
+        32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
+        32, 32, 32, 41, 87, 59, 61, 59, 41, 81, 81, 81, 81, 81, 81, 59, 61, 59,
+        59, 58, 109, 81, 81, 87, 39, 46, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
+        32, 32, 32, 32, 32, 32, 32, 32, 10, 32, 32, 32, 32, 32, 32, 32, 32, 32,
+        32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 60, 81, 91, 59,
+        59, 61, 81, 81, 81, 81, 81, 87, 43, 59, 58, 59, 60, 81, 81, 81, 76, 32,
+        32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
+        32, 10, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
+        32, 32, 32, 32, 32, 32, 32, 32, 52, 91, 58, 45, 59, 87, 81, 81, 81, 81,
+        70, 58, 58, 58, 59, 106, 81, 81, 81, 91, 32, 32, 32, 32, 32, 32, 32, 32,
+        32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 10, 32, 32, 32, 32, 32,
+        32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
+        32, 93, 40, 32, 46, 59, 100, 81, 81, 81, 81, 40, 58, 46, 46, 58, 100, 81,
+        81, 68, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
+        32, 32, 32, 32, 32, 10, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
+        32, 46, 46, 46, 32, 46, 46, 46, 32, 46, 32, 46, 45, 91, 59, 61, 58, 109,
+        81, 81, 81, 87, 46, 58, 61, 59, 60, 81, 81, 80, 32, 32, 32, 32, 32, 32,
+        32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 10, 32,
+        32, 32, 32, 32, 32, 32, 32, 46, 46, 61, 59, 61, 61, 61, 59, 61, 61, 59,
+        59, 59, 58, 58, 46, 46, 41, 58, 59, 58, 81, 81, 81, 81, 69, 58, 59, 59,
+        60, 81, 81, 68, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
+        32, 32, 32, 32, 32, 32, 32, 32, 32, 10, 32, 32, 32, 32, 32, 32, 58, 59,
+        61, 59, 59, 59, 59, 59, 59, 59, 59, 59, 59, 59, 59, 59, 59, 61, 61, 46,
+        61, 59, 93, 81, 81, 81, 81, 107, 58, 59, 58, 109, 87, 68, 96, 32, 32, 32,
+        46, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
+        32, 32, 10, 32, 32, 32, 46, 60, 61, 61, 59, 59, 59, 59, 59, 59, 59, 59,
+        59, 59, 59, 59, 59, 59, 59, 59, 59, 58, 58, 58, 115, 109, 68, 41, 36, 81,
+        109, 46, 61, 61, 81, 69, 96, 46, 58, 58, 46, 58, 46, 46, 32, 32, 32, 32,
+        32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 10, 46, 32, 95, 81,
+        67, 61, 61, 58, 59, 59, 59, 59, 59, 59, 59, 59, 59, 59, 59, 59, 59, 59,
+        59, 59, 59, 59, 58, 68, 39, 61, 105, 61, 63, 81, 119, 58, 106, 80, 32, 58,
+        61, 59, 59, 61, 59, 61, 59, 61, 46, 95, 32, 32, 32, 32, 32, 32, 32, 32,
+        32, 32, 32, 32, 32, 32, 10, 32, 32, 36, 81, 109, 105, 59, 61, 59, 59, 59,
+        59, 59, 59, 59, 59, 59, 59, 59, 59, 59, 59, 59, 59, 59, 59, 46, 58, 37,
+        73, 108, 108, 62, 52, 81, 109, 34, 32, 61, 59, 59, 59, 59, 59, 59, 59, 59,
+        59, 61, 59, 61, 61, 46, 46, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 10,
+        32, 46, 45, 57, 101, 43, 43, 61, 61, 59, 59, 59, 59, 59, 59, 61, 59, 59,
+        59, 59, 59, 59, 59, 59, 59, 58, 97, 46, 61, 108, 62, 126, 58, 106, 80, 96,
+        46, 61, 61, 59, 59, 59, 59, 59, 59, 59, 59, 59, 59, 59, 59, 59, 61, 61,
+        97, 103, 97, 32, 32, 32, 32, 32, 32, 32, 10, 32, 32, 32, 32, 45, 46, 32,
+        46, 32, 32, 32, 32, 32, 32, 32, 32, 45, 45, 45, 58, 59, 59, 59, 59, 61,
+        119, 81, 97, 124, 105, 124, 124, 39, 126, 95, 119, 58, 61, 58, 59, 59, 59,
+        59, 59, 59, 59, 59, 59, 59, 59, 59, 59, 59, 61, 119, 81, 81, 99, 32, 32,
+        32, 32, 32, 32, 10, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
+        32, 32, 32, 32, 32, 32, 32, 58, 59, 59, 58, 106, 81, 81, 81, 109, 119,
+        119, 119, 109, 109, 81, 81, 122, 58, 59, 59, 59, 59, 59, 59, 59, 59, 59,
+        59, 59, 59, 59, 59, 58, 115, 81, 87, 81, 102, 32, 32, 32, 32, 32, 32, 10,
+        32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
+        32, 32, 61, 58, 59, 61, 81, 81, 81, 81, 81, 81, 87, 87, 81, 81, 81, 81,
+        81, 58, 59, 59, 59, 59, 59, 59, 59, 59, 58, 45, 45, 45, 59, 59, 59, 41,
+        87, 66, 33, 32, 32, 32, 32, 32, 32, 32, 10, 32, 32, 32, 32, 32, 32, 32,
+        32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 58, 59, 59, 93, 81,
+        81, 81, 81, 81, 81, 81, 81, 81, 81, 81, 81, 81, 40, 58, 59, 59, 59, 58,
+        45, 32, 46, 32, 32, 32, 32, 32, 46, 32, 126, 96, 32, 32, 32, 32, 32, 32,
+        32, 32, 32, 10, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
+        32, 32, 32, 32, 32, 32, 58, 61, 59, 58, 81, 81, 81, 81, 81, 81, 81, 81,
+        81, 81, 81, 81, 81, 40, 58, 59, 59, 59, 58, 32, 32, 32, 32, 32, 32, 32,
+        32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 10, 32, 32, 32,
+        32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 58,
+        59, 59, 58, 81, 81, 81, 81, 81, 81, 81, 81, 81, 81, 81, 81, 81, 40, 58,
+        59, 59, 59, 46, 46, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
+        32, 32, 32, 32, 32, 32, 32, 10, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
+        32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 58, 61, 59, 60, 81, 81, 81, 81,
+        81, 81, 81, 81, 81, 81, 81, 81, 81, 59, 61, 59, 59, 61, 32, 32, 32, 32,
+        32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
+        10, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
+        32, 32, 32, 58, 59, 59, 93, 81, 81, 81, 81, 81, 81, 81, 81, 81, 81, 81,
+        81, 81, 40, 59, 59, 59, 59, 32, 46, 32, 32, 32, 32, 32, 32, 32, 32, 32,
+        32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 10, 32, 32, 32, 32, 32, 32,
+        32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 58, 61, 58, 106,
+        81, 81, 81, 81, 81, 81, 81, 81, 81, 81, 81, 81, 81, 76, 58, 59, 59, 59,
+        32, 46, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
+        32, 32, 32, 32, 10, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
+        32, 32, 32, 32, 32, 32, 32, 61, 58, 58, 81, 81, 81, 81, 81, 81, 81, 81,
+        81, 81, 81, 81, 81, 87, 58, 59, 59, 59, 59, 32, 46, 32, 32, 32, 32, 32,
+        32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 10, 32, 32,
+        32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
+        58, 59, 61, 41, 81, 81, 81, 81, 81, 81, 81, 81, 81, 81, 81, 81, 87, 59,
+        61, 58, 59, 59, 46, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
+        32, 32, 32, 32, 32, 32, 32, 32, 10, 32, 32, 32, 32, 32, 32, 32, 32, 32,
+        32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 58, 61, 58, 61, 81, 81, 81,
+        81, 81, 81, 81, 81, 81, 81, 81, 81, 107, 58, 59, 59, 59, 59, 58, 32, 32,
+        32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
+        32, 10, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
+        32, 32, 32, 32, 58, 59, 59, 58, 51, 81, 81, 81, 81, 81, 81, 81, 81, 81,
+        81, 102, 94, 59, 59, 59, 59, 59, 61, 32, 32, 32, 32, 32, 32, 32, 32, 32,
+        32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 10, 32, 32, 32, 32, 32,
+        32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 58, 61, 59,
+        59, 59, 43, 63, 36, 81, 81, 81, 87, 64, 86, 102, 58, 59, 59, 59, 59, 59,
+        59, 59, 46, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
+        32, 32, 32, 32, 32, 10, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
+        32, 32, 32, 32, 32, 32, 32, 46, 61, 59, 59, 59, 59, 59, 59, 59, 43, 33,
+        58, 126, 126, 58, 59, 59, 59, 59, 59, 59, 59, 59, 59, 59, 32, 46, 32, 32,
+        32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 10, 32,
+        32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 46,
+        61, 59, 59, 59, 58, 45, 58, 61, 59, 58, 58, 58, 61, 59, 59, 59, 59, 59,
+        59, 59, 59, 59, 59, 59, 59, 58, 32, 46, 32, 32, 32, 32, 32, 32, 32, 32,
+        32, 32, 32, 32, 32, 32, 32, 32, 32, 10, 32, 32, 32, 32, 32, 32, 32, 32,
+        32, 32, 32, 32, 32, 32, 32, 32, 32, 46, 61, 59, 59, 59, 59, 59, 58, 95,
+        32, 45, 61, 59, 61, 59, 59, 59, 59, 59, 59, 59, 45, 58, 59, 59, 59, 59,
+        61, 58, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
+        32, 32, 10, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
+        32, 32, 58, 61, 59, 59, 59, 59, 59, 61, 59, 61, 46, 46, 32, 45, 45, 45,
+        59, 58, 45, 45, 46, 58, 59, 59, 59, 59, 59, 59, 61, 46, 32, 32, 32, 32,
+        32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 10, 32, 32, 32, 32,
+        32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 46, 58, 59, 59, 59, 59,
+        59, 59, 59, 59, 59, 61, 59, 46, 32, 32, 46, 32, 46, 32, 58, 61, 59, 59,
+        59, 59, 59, 59, 59, 59, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
+        32, 32, 32, 32, 32, 32, 10, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
+        32, 32, 32, 32, 32, 32, 32, 45, 59, 59, 59, 59, 59, 59, 59, 59, 58, 32,
+        32, 32, 32, 32, 32, 32, 32, 32, 61, 59, 59, 59, 59, 59, 59, 59, 58, 32,
+        32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 10,
+        32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
+        46, 61, 59, 59, 59, 59, 59, 59, 59, 32, 46, 32, 32, 32, 32, 32, 32, 61,
+        46, 61, 59, 59, 59, 59, 59, 59, 58, 32, 32, 32, 32, 32, 32, 32, 32, 32,
+        32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 10, 32, 32, 32, 32, 32, 32, 32,
+        32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 61, 59, 59, 59, 59, 59, 59,
+        59, 59, 32, 46, 32, 32, 32, 32, 32, 32, 32, 46, 61, 58, 59, 59, 59, 59,
+        59, 58, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
+        32, 32, 32, 10, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
+        32, 32, 32, 32, 58, 59, 59, 59, 59, 59, 59, 59, 59, 46, 46, 32, 32, 32,
+        32, 32, 32, 32, 61, 59, 59, 59, 59, 59, 59, 59, 45, 32, 32, 32, 32, 32,
+        32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 10, 32, 32, 32,
+        32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 46, 32, 45, 61,
+        59, 59, 59, 59, 59, 58, 32, 46, 32, 32, 32, 32, 32, 32, 32, 58, 59, 59,
+        59, 59, 59, 58, 45, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
+        32, 32, 32, 32, 32, 32, 32, 10, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
+        32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 45, 45, 45, 45, 32, 46, 32,
+        32, 32, 32, 32, 32, 32, 32, 32, 32, 45, 61, 59, 58, 45, 45, 32, 32, 32,
+        32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
+        10, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
+        32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
+        32, 32, 46, 32, 32, 46, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
+        32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 10
+};

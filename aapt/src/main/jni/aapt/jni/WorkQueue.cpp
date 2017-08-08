@@ -24,148 +24,148 @@ namespace android {
 
 // --- WorkQueue ---
 
-WorkQueue::WorkQueue(size_t maxThreads, bool canCallJava) :
-        mMaxThreads(maxThreads), mCanCallJava(canCallJava),
-        mCanceled(false), mFinished(false), mIdleThreads(0) {
-}
-
-WorkQueue::~WorkQueue() {
-    if (!cancel()) {
-        finish();
-    }
-}
-
-status_t WorkQueue::schedule(WorkUnit* workUnit, size_t backlog) {
-    AutoMutex _l(mLock);
-
-    if (mFinished || mCanceled) {
-        return INVALID_OPERATION;
+    WorkQueue::WorkQueue(size_t maxThreads, bool canCallJava) :
+            mMaxThreads(maxThreads), mCanCallJava(canCallJava),
+            mCanceled(false), mFinished(false), mIdleThreads(0) {
     }
 
-    if (mWorkThreads.size() < mMaxThreads
-            && mIdleThreads < mWorkUnits.size() + 1) {
-        sp<WorkThread> workThread = new WorkThread(this, mCanCallJava);
-        status_t status = workThread->run("WorkQueue::WorkThread");
-        if (status) {
-            return status;
-        }
-        mWorkThreads.add(workThread);
-        mIdleThreads += 1;
-    } else if (backlog) {
-        while (mWorkUnits.size() >= mMaxThreads * backlog) {
-            mWorkDequeuedCondition.wait(mLock);
-            if (mFinished || mCanceled) {
-                return INVALID_OPERATION;
-            }
+    WorkQueue::~WorkQueue() {
+        if (!cancel()) {
+            finish();
         }
     }
 
-    mWorkUnits.add(workUnit);
-    mWorkChangedCondition.broadcast();
-    return OK;
-}
-
-status_t WorkQueue::cancel() {
-    AutoMutex _l(mLock);
-
-    return cancelLocked();
-}
-
-status_t WorkQueue::cancelLocked() {
-    if (mFinished) {
-        return INVALID_OPERATION;
-    }
-
-    if (!mCanceled) {
-        mCanceled = true;
-
-        size_t count = mWorkUnits.size();
-        for (size_t i = 0; i < count; i++) {
-            delete mWorkUnits.itemAt(i);
-        }
-        mWorkUnits.clear();
-        mWorkChangedCondition.broadcast();
-        mWorkDequeuedCondition.broadcast();
-    }
-    return OK;
-}
-
-status_t WorkQueue::finish() {
-    { // acquire lock
+    status_t WorkQueue::schedule(WorkUnit *workUnit, size_t backlog) {
         AutoMutex _l(mLock);
 
+        if (mFinished || mCanceled) {
+            return INVALID_OPERATION;
+        }
+
+        if (mWorkThreads.size() < mMaxThreads
+            && mIdleThreads < mWorkUnits.size() + 1) {
+            sp<WorkThread> workThread = new WorkThread(this, mCanCallJava);
+            status_t status = workThread->run("WorkQueue::WorkThread");
+            if (status) {
+                return status;
+            }
+            mWorkThreads.add(workThread);
+            mIdleThreads += 1;
+        } else if (backlog) {
+            while (mWorkUnits.size() >= mMaxThreads * backlog) {
+                mWorkDequeuedCondition.wait(mLock);
+                if (mFinished || mCanceled) {
+                    return INVALID_OPERATION;
+                }
+            }
+        }
+
+        mWorkUnits.add(workUnit);
+        mWorkChangedCondition.broadcast();
+        return OK;
+    }
+
+    status_t WorkQueue::cancel() {
+        AutoMutex _l(mLock);
+
+        return cancelLocked();
+    }
+
+    status_t WorkQueue::cancelLocked() {
         if (mFinished) {
             return INVALID_OPERATION;
         }
 
-        mFinished = true;
-        mWorkChangedCondition.broadcast();
-    } // release lock
+        if (!mCanceled) {
+            mCanceled = true;
 
-    // It is not possible for the list of work threads to change once the mFinished
-    // flag has been set, so we can access mWorkThreads outside of the lock here.
-    size_t count = mWorkThreads.size();
-    for (size_t i = 0; i < count; i++) {
-        mWorkThreads.itemAt(i)->join();
+            size_t count = mWorkUnits.size();
+            for (size_t i = 0; i < count; i++) {
+                delete mWorkUnits.itemAt(i);
+            }
+            mWorkUnits.clear();
+            mWorkChangedCondition.broadcast();
+            mWorkDequeuedCondition.broadcast();
+        }
+        return OK;
     }
-    mWorkThreads.clear();
-    return OK;
-}
 
-bool WorkQueue::threadLoop() {
-    WorkUnit* workUnit;
-    { // acquire lock
-        AutoMutex _l(mLock);
-
-        for (;;) {
-            if (mCanceled) {
-                return false;
-            }
-
-            if (!mWorkUnits.isEmpty()) {
-                workUnit = mWorkUnits.itemAt(0);
-                mWorkUnits.removeAt(0);
-                mIdleThreads -= 1;
-                mWorkDequeuedCondition.broadcast();
-                break;
-            }
+    status_t WorkQueue::finish() {
+        { // acquire lock
+            AutoMutex _l(mLock);
 
             if (mFinished) {
-                return false;
+                return INVALID_OPERATION;
             }
 
-            mWorkChangedCondition.wait(mLock);
+            mFinished = true;
+            mWorkChangedCondition.broadcast();
+        } // release lock
+
+        // It is not possible for the list of work threads to change once the mFinished
+        // flag has been set, so we can access mWorkThreads outside of the lock here.
+        size_t count = mWorkThreads.size();
+        for (size_t i = 0; i < count; i++) {
+            mWorkThreads.itemAt(i)->join();
         }
-    } // release lock
+        mWorkThreads.clear();
+        return OK;
+    }
 
-    bool shouldContinue = workUnit->run();
-    delete workUnit;
+    bool WorkQueue::threadLoop() {
+        WorkUnit *workUnit;
+        { // acquire lock
+            AutoMutex _l(mLock);
 
-    { // acquire lock
-        AutoMutex _l(mLock);
+            for (;;) {
+                if (mCanceled) {
+                    return false;
+                }
 
-        mIdleThreads += 1;
+                if (!mWorkUnits.isEmpty()) {
+                    workUnit = mWorkUnits.itemAt(0);
+                    mWorkUnits.removeAt(0);
+                    mIdleThreads -= 1;
+                    mWorkDequeuedCondition.broadcast();
+                    break;
+                }
 
-        if (!shouldContinue) {
-            cancelLocked();
-            return false;
-        }
-    } // release lock
+                if (mFinished) {
+                    return false;
+                }
 
-    return true;
-}
+                mWorkChangedCondition.wait(mLock);
+            }
+        } // release lock
+
+        bool shouldContinue = workUnit->run();
+        delete workUnit;
+
+        { // acquire lock
+            AutoMutex _l(mLock);
+
+            mIdleThreads += 1;
+
+            if (!shouldContinue) {
+                cancelLocked();
+                return false;
+            }
+        } // release lock
+
+        return true;
+    }
 
 // --- WorkQueue::WorkThread ---
 
-WorkQueue::WorkThread::WorkThread(WorkQueue* workQueue, bool canCallJava) :
-        Thread(canCallJava), mWorkQueue(workQueue) {
-}
+    WorkQueue::WorkThread::WorkThread(WorkQueue *workQueue, bool canCallJava) :
+            Thread(canCallJava), mWorkQueue(workQueue) {
+    }
 
-WorkQueue::WorkThread::~WorkThread() {
-}
+    WorkQueue::WorkThread::~WorkThread() {
+    }
 
-bool WorkQueue::WorkThread::threadLoop() {
-    return mWorkQueue->threadLoop();
-}
+    bool WorkQueue::WorkThread::threadLoop() {
+        return mWorkQueue->threadLoop();
+    }
 
 };  // namespace android

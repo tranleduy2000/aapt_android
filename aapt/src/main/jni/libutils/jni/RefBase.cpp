@@ -20,8 +20,8 @@
 #include <fcntl.h>
 
 #include <utils/RefBase.h>
+#include <utils/Log.h>
 
-#include <utils/CallStack.h>
 
 #ifndef __unused
 #define __unused __attribute__((__unused__))
@@ -405,7 +405,7 @@ namespace android {
 
         refs->addStrongRef(id);
         const int32_t c = refs->mStrong.fetch_add(1, std::memory_order_relaxed);
-        ALOG_ASSERT(c > 0, "incStrong() called on %p after last strong ref", refs);
+        LOG_ASSERT(c > 0, "incStrong() called on %p after last strong ref", refs);
 #if PRINT_REFS
         ALOGD("incStrong of %p from %p: cnt=%d\n", this, id, c);
 #endif
@@ -416,7 +416,7 @@ namespace android {
         int32_t old = refs->mStrong.fetch_sub(INITIAL_STRONG_VALUE,
                                               std::memory_order_relaxed);
         // A decStrong() must still happen after us.
-        ALOG_ASSERT(old > INITIAL_STRONG_VALUE, "0x%x too small", old);
+        LOG_ASSERT(old > INITIAL_STRONG_VALUE, "0x%x too small", old);
         refs->mBase->onFirstRef();
     }
 
@@ -455,8 +455,8 @@ namespace android {
 
         refs->addStrongRef(id);
         const int32_t c = refs->mStrong.fetch_add(1, std::memory_order_relaxed);
-        ALOG_ASSERT(c >= 0, "forceIncStrong called on %p after ref count underflow",
-                    refs);
+        LOG_ASSERT(c >= 0, "forceIncStrong called on %p after ref count underflow",
+                   refs);
 #if PRINT_REFS
         ALOGD("forceIncStrong of %p from %p: cnt=%d\n", this, id, c);
 #endif
@@ -485,7 +485,7 @@ namespace android {
         impl->addWeakRef(id);
         const int32_t c __unused = impl->mWeak.fetch_add(1,
                                                          std::memory_order_relaxed);
-        ALOG_ASSERT(c >= 0, "incWeak called on %p after last weak ref", this);
+        LOG_ASSERT(c >= 0, "incWeak called on %p after last weak ref", this);
     }
 
 
@@ -533,8 +533,8 @@ namespace android {
         weakref_impl *const impl = static_cast<weakref_impl *>(this);
         int32_t curCount = impl->mStrong.load(std::memory_order_relaxed);
 
-        ALOG_ASSERT(curCount >= 0,
-                    "attemptIncStrong called on %p after underflow", this);
+        LOG_ASSERT(curCount >= 0,
+                   "attemptIncStrong called on %p after underflow", this);
 
         while (curCount > 0 && curCount != INITIAL_STRONG_VALUE) {
             // we're in the easy/common case of promoting a weak-reference
@@ -629,8 +629,8 @@ namespace android {
         weakref_impl *const impl = static_cast<weakref_impl *>(this);
 
         int32_t curCount = impl->mWeak.load(std::memory_order_relaxed);
-        ALOG_ASSERT(curCount >= 0, "attemptIncWeak called on %p after underflow",
-                    this);
+        LOG_ASSERT(curCount >= 0, "attemptIncWeak called on %p after underflow",
+                   this);
         while (curCount > 0) {
             if (impl->mWeak.compare_exchange_weak(curCount, curCount + 1,
                                                   std::memory_order_relaxed)) {

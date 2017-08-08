@@ -6,25 +6,23 @@
 
 #include "ResourceFilter.h"
 #include "AaptUtil.h"
-#include "AaptConfig.h"
 
 status_t
-WeakResourceFilter::parse(const String8& str)
-{
+WeakResourceFilter::parse(const String8 &str) {
     Vector<String8> configStrs = AaptUtil::split(str, ',');
     const size_t N = configStrs.size();
     mConfigs.clear();
     mConfigMask = 0;
     mConfigs.resize(N);
     for (size_t i = 0; i < N; i++) {
-        const String8& part = configStrs[i];
+        const String8 &part = configStrs[i];
         if (part == "en_XA") {
             mContainsPseudoAccented = true;
         } else if (part == "ar_XB") {
             mContainsPseudoBidi = true;
         }
 
-        std::pair<ConfigDescription, uint32_t>& entry = mConfigs.editItemAt(i);
+        std::pair<ConfigDescription, uint32_t> &entry = mConfigs.editItemAt(i);
 
         AaptLocaleValue val;
         if (val.initFromFilterString(part)) {
@@ -43,7 +41,8 @@ WeakResourceFilter::parse(const String8& str)
 
         // Ignore any densities. Those are best handled in --preferred-density
         if ((entry.second & ResTable_config::CONFIG_DENSITY) != 0) {
-            fprintf(stderr, "warning: ignoring flag -c %s. Use --preferred-density instead.\n", entry.first.toString().string());
+            fprintf(stderr, "warning: ignoring flag -c %s. Use --preferred-density instead.\n",
+                    entry.first.toString().string());
             entry.first.density = 0;
             entry.second &= ~ResTable_config::CONFIG_DENSITY;
         }
@@ -68,9 +67,9 @@ WeakResourceFilter::parse(const String8& str)
 // Finally, when we have two scripts (one of which could be computed), we return
 // true if and only if they are an exact match.
 inline bool
-scriptsMatch(const ResTable_config& config, const ResTable_config& entry) {
-    const char* configScript = config.localeScript;
-    const char* entryScript = entry.localeScript;
+scriptsMatch(const ResTable_config &config, const ResTable_config &entry) {
+    const char *configScript = config.localeScript;
+    const char *entryScript = entry.localeScript;
     if (configScript[0] == '\0' && entryScript[0] == '\0') {
         return true;  // both scripts are empty. We match for backward compatibility reasons.
     }
@@ -95,8 +94,7 @@ scriptsMatch(const ResTable_config& config, const ResTable_config& entry) {
 
 
 bool
-WeakResourceFilter::match(const ResTable_config& config) const
-{
+WeakResourceFilter::match(const ResTable_config &config) const {
     uint32_t mask = mDefault.diff(config);
     if ((mConfigMask & mask) == 0) {
         // The two configurations don't have any common axis.
@@ -106,7 +104,7 @@ WeakResourceFilter::match(const ResTable_config& config) const
     uint32_t matchedAxis = 0x0;
     const size_t N = mConfigs.size();
     for (size_t i = 0; i < N; i++) {
-        const std::pair<ConfigDescription, uint32_t>& entry = mConfigs[i];
+        const std::pair<ConfigDescription, uint32_t> &entry = mConfigs[i];
         uint32_t diff = entry.first.diff(config);
         if ((diff & entry.second) == 0) {
             // Mark the axis that was matched.
@@ -122,18 +120,18 @@ WeakResourceFilter::match(const ResTable_config& config) const
             // scripts were explicitly set. In cases we can't compute an script,
             // we match.)
             if (config.language[0] != '\0' &&
-                    config.country[0] == '\0' &&
-                    config.localeVariant[0] == '\0' &&
-                    config.language[0] == entry.first.language[0] &&
-                    config.language[1] == entry.first.language[1] &&
-                    scriptsMatch(config, entry.first)) {
+                config.country[0] == '\0' &&
+                config.localeVariant[0] == '\0' &&
+                config.language[0] == entry.first.language[0] &&
+                config.language[1] == entry.first.language[1] &&
+                scriptsMatch(config, entry.first)) {
                 matchedAxis |= ResTable_config::CONFIG_LOCALE;
             }
         } else if ((diff & entry.second) == ResTable_config::CONFIG_SMALLEST_SCREEN_SIZE) {
             // Special case if the smallest screen width doesn't match. We check that the
             // config being matched has a smaller screen width than the filter specified.
             if (config.smallestScreenWidthDp != 0 &&
-                    config.smallestScreenWidthDp < entry.first.smallestScreenWidthDp) {
+                config.smallestScreenWidthDp < entry.first.smallestScreenWidthDp) {
                 matchedAxis |= ResTable_config::CONFIG_SMALLEST_SCREEN_SIZE;
             }
         }
@@ -142,7 +140,7 @@ WeakResourceFilter::match(const ResTable_config& config) const
 }
 
 status_t
-StrongResourceFilter::parse(const String8& str) {
+StrongResourceFilter::parse(const String8 &str) {
     Vector<String8> configStrs = AaptUtil::split(str, ',');
     ConfigDescription config;
     mConfigs.clear();

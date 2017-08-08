@@ -24,26 +24,30 @@ using namespace android;
 #define PRINT_STRING_METRICS 0
 
 #if __cplusplus >= 201103L
-void strcpy16_htod(char16_t* dst, const char16_t* src);
-#endif
-void strcpy16_htod(uint16_t* dst, const char16_t* src);
 
-void printStringPool(const ResStringPool* pool);
+void strcpy16_htod(char16_t *dst, const char16_t *src);
+
+#endif
+
+void strcpy16_htod(uint16_t *dst, const char16_t *src);
+
+void printStringPool(const ResStringPool *pool);
 
 /**
  * The StringPool class is used as an intermediate representation for
  * generating the string pool resource data structure that can be parsed with
  * ResStringPool in include/utils/ResourceTypes.h.
  */
-class StringPool
-{
+class StringPool {
 public:
     struct entry {
-        entry() : offset(0) { }
-        explicit entry(const String16& _value) : value(_value), offset(0), hasStyles(false) { }
-        entry(const entry& o) : value(o.value), offset(o.offset),
-                hasStyles(o.hasStyles), indices(o.indices),
-                configTypeName(o.configTypeName), configs(o.configs) { }
+        entry() : offset(0) {}
+
+        explicit entry(const String16 &_value) : value(_value), offset(0), hasStyles(false) {}
+
+        entry(const entry &o) : value(o.value), offset(o.offset),
+                                hasStyles(o.hasStyles), indices(o.indices),
+                                configTypeName(o.configTypeName), configs(o.configs) {}
 
         String16 value;
         size_t offset;
@@ -54,14 +58,19 @@ public:
 
         String8 makeConfigsString() const;
 
-        int compare(const entry& o) const;
+        int compare(const entry &o) const;
 
-        inline bool operator<(const entry& o) const { return compare(o) < 0; }
-        inline bool operator<=(const entry& o) const { return compare(o) <= 0; }
-        inline bool operator==(const entry& o) const { return compare(o) == 0; }
-        inline bool operator!=(const entry& o) const { return compare(o) != 0; }
-        inline bool operator>=(const entry& o) const { return compare(o) >= 0; }
-        inline bool operator>(const entry& o) const { return compare(o) > 0; }
+        inline bool operator<(const entry &o) const { return compare(o) < 0; }
+
+        inline bool operator<=(const entry &o) const { return compare(o) <= 0; }
+
+        inline bool operator==(const entry &o) const { return compare(o) == 0; }
+
+        inline bool operator!=(const entry &o) const { return compare(o) != 0; }
+
+        inline bool operator>=(const entry &o) const { return compare(o) >= 0; }
+
+        inline bool operator>(const entry &o) const { return compare(o) > 0; }
     };
 
     struct entry_style_span {
@@ -70,9 +79,9 @@ public:
     };
 
     struct entry_style {
-        entry_style() : offset(0) { }
+        entry_style() : offset(0) {}
 
-        entry_style(const entry_style& o) : offset(o.offset), spans(o.spans) { }
+        entry_style(const entry_style &o) : offset(o.offset), spans(o.spans) {}
 
         size_t offset;
         Vector<entry_style_span> spans;
@@ -92,16 +101,18 @@ public:
      *
      * Returns the index in the entry array of the new string entry.
      */
-    ssize_t add(const String16& value, bool mergeDuplicates = false,
-            const String8* configTypeName = NULL, const ResTable_config* config = NULL);
+    ssize_t add(const String16 &value, bool mergeDuplicates = false,
+                const String8 *configTypeName = NULL, const ResTable_config *config = NULL);
 
-    ssize_t add(const String16& value, const Vector<entry_style_span>& spans,
-            const String8* configTypeName = NULL, const ResTable_config* config = NULL);
+    ssize_t add(const String16 &value, const Vector<entry_style_span> &spans,
+                const String8 *configTypeName = NULL, const ResTable_config *config = NULL);
 
-    status_t addStyleSpan(size_t idx, const String16& name,
+    status_t addStyleSpan(size_t idx, const String16 &name,
                           uint32_t start, uint32_t end);
-    status_t addStyleSpans(size_t idx, const Vector<entry_style_span>& spans);
-    status_t addStyleSpan(size_t idx, const entry_style_span& span);
+
+    status_t addStyleSpans(size_t idx, const Vector<entry_style_span> &spans);
+
+    status_t addStyleSpan(size_t idx, const entry_style_span &span);
 
     // Sort the contents of the string block by the configuration associated
     // with each item.  After doing this you can use mapOriginalPosToNewPos()
@@ -117,7 +128,7 @@ public:
 
     sp<AaptFile> createStringBlock();
 
-    status_t writeStringBlock(const sp<AaptFile>& pool);
+    status_t writeStringBlock(const sp<AaptFile> &pool);
 
     /**
      * Find out an offset in the pool for a particular string.  If the string
@@ -127,7 +138,7 @@ public:
      * multiple times in the pool, the first offset will be returned.  Returns
      * -1 if the string does not exist.
      */
-    ssize_t offsetForString(const String16& val) const;
+    ssize_t offsetForString(const String16 &val) const;
 
     /**
      * Find all of the offsets in the pool for a particular string.  If the
@@ -135,19 +146,20 @@ public:
      * createStringBlock() or writeStringBlock() has been called
      * (which determines the offsets).  Returns NULL if the string does not exist.
      */
-    const Vector<size_t>* offsetsForString(const String16& val) const;
+    const Vector<size_t> *offsetsForString(const String16 &val) const;
 
 private:
-    class ConfigSorter
-    {
+    class ConfigSorter {
     public:
-        explicit ConfigSorter(const StringPool&);
+        explicit ConfigSorter(const StringPool &);
+
         bool operator()(size_t l, size_t r);
+
     private:
-        const StringPool& pool;
+        const StringPool &pool;
     };
 
-    const bool                              mUTF8;
+    const bool mUTF8;
 
     // The following data structures represent the actual structures
     // that will be generated for the final string pool.
@@ -155,27 +167,27 @@ private:
     // Raw array of unique strings, in some arbitrary order.  This is the
     // actual strings that appear in the final string pool, in the order
     // that they will be written.
-    Vector<entry>                           mEntries;
+    Vector<entry> mEntries;
     // Array of indices into mEntries, in the order they were
     // added to the pool.  This can be different than mEntries
     // if the same string was added multiple times (it will appear
     // once in mEntries, with multiple occurrences in this array).
     // This is the lookup array that will be written for finding
     // the string for each offset/position in the string pool.
-    Vector<size_t>                          mEntryArray;
+    Vector<size_t> mEntryArray;
     // Optional style span information associated with each index of
     // mEntryArray.
-    Vector<entry_style>                     mEntryStyleArray;
+    Vector<entry_style> mEntryStyleArray;
 
     // The following data structures are used for book-keeping as the
     // string pool is constructed.
 
     // Unique set of all the strings added to the pool, mapped to
     // the first index of mEntryArray where the value was added.
-    DefaultKeyedVector<String16, ssize_t>   mValues;
+    DefaultKeyedVector<String16, ssize_t> mValues;
     // This array maps from the original position a string was placed at
     // in mEntryArray to its new position after being sorted with sortByConfig().
-    Vector<size_t>                          mOriginalPosToNewPos;
+    Vector<size_t> mOriginalPosToNewPos;
 };
 
 #endif
