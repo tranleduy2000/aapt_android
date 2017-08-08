@@ -85,67 +85,19 @@ libcutils_SRC_FILES := \
     libcutils/jni/mq.c \
     libcutils/jni/uevent.c
 
-libcutils_SRC_FILES := \
-    libcutils/android_get_control_file.cpp \
-    libcutils/fs.c \
-    libcutils/multiuser.c \
-    libcutils/socket_inaddr_any_server_unix.c \
-    libcutils/socket_local_client_unix.c \
-    libcutils/socket_local_server_unix.c \
-    libcutils/socket_network_client_unix.c \
-    libcutils/sockets_unix.cpp \
-    libcutils/str_parms.c \
-	libcutils/config_utils.c \
-	libcutils/fs_config.cpp \
-	libcutils/canned_fs_config.c \
-	libcutils/hashmap.c \
-	libcutils/iosched_policy.c \
-	libcutils/load_file.c \
-	libcutils/native_handle.c \
-	libcutils/open_memstream.c \
-	libcutils/record_stream.c \
-	libcutils/sched_policy.cpp \
-	libcutils/sockets.cpp \
-	libcutils/strdup16to8.c \
-	libcutils/strdup8to16.c \
-	libcutils/strlcpy.c \
-	libcutils/threads.c \
-	libcutils/android_reboot.c \
-	libcutils/ashmem-dev.c \
-	libcutils/klog.cpp \
-	libcutils/partition_utils.c \
-	libcutils/properties.cpp \
-	libcutils/qtaguid.c \
-	libcutils/trace-dev.c \
-	libcutils/uevent.c
-
 ifeq ($(TARGET_ARCH),arm)
-libcutils_SRC_FILES += libcutils/arch-arm/memset32.S
+libcutils_SRC_FILES += libcutils/jni/arch-arm/memset32.S
 else  # !arm
-
-ifeq ($(TARGET_ARCH),arm64)
-libcutils_SRC_FILES += libcutils/arch-arm64/android_memset.S
-else  # !arm64
-
-ifeq ($(TARGET_ARCH),mips)
-libcutils_SRC_FILES += libcutils/arch-mips/android_memset.c
-else  # !mips
-
-ifeq ($(TARGET_ARCH),mips64)
-libcutils_SRC_FILES += libcutils/arch-mips/android_memset.c
-else  # !mips64
-
-ifeq ($(TARGET_ARCH_VARIANT),x86)
-libcutils_SRC_FILES += libcutils/arch-x86/android_memset16.S libcutils/arch-x86/android_memset32.S
-else # !x86
-
-ifeq ($(TARGET_ARCH_VARIANT),x86_64)
-libcutils_SRC_FILES += libcutils/arch-x86_64/android_memset16.S libcutils/arch-x86_64/android_memset32.S
-endif # !x86_64
-endif # !x86
-endif # !mips64
-endif # !mips
-endif # !arm64
+ifeq ($(TARGET_ARCH),sh)
+libcutils_SRC_FILES += libcutils/jni/memory.c libcutils/jni/atomic-android-sh.c
+else  # !sh
+ifeq ($(TARGET_ARCH_VARIANT),x86-atom)
+libcutils_CFLAGS += -DHAVE_MEMSET16 -DHAVE_MEMSET32
+libcutils_SRC_FILES += libcutils/jni/arch-x86/android_memset16.S libcutils/jni/arch-x86/android_memset32.S libcutils/jni/memory.c
+else # !x86-atom
+libcutils_SRC_FILES += libcutils/jni/memory.c
+endif # !x86-atom
+endif # !sh
 endif # !arm
 
 ifeq ($(TARGET_CPU_SMP),true)
@@ -156,7 +108,7 @@ endif
 
 libcutils_CFLAGS += $(libcutils_targetSmpFlag)
 libcutils_CFLAGS += -DHAVE_PTHREADS -DHAVE_SCHED_H -DHAVE_SYS_UIO_H -DHAVE_ANDROID_OS -DHAVE_IOCTL -DHAVE_TM_GMTOFF
-libcutils_C_INCLUDES := $(LOCAL_PATH)/libcutils/include
+libcutils_C_INCLUDES := $(LOCAL_PATH)/libcutils/jni/include
 
 #############################################################################
 # libhost definitions
